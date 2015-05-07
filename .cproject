@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="0.634342938">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="0.634342938" moduleId="org.eclipse.cdt.core.settings" name="Default">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.VCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration buildProperties="" description="" id="0.634342938" name="Default" parent="org.eclipse.cdt.build.core.prefbase.cfg">
+					<folderInfo id="0.634342938." name="/" resourcePath="">
+						<toolChain id="org.eclipse.cdt.build.core.prefbase.toolchain.475467144" name="No ToolChain" resourceTypeBasedDiscovery="false" superClass="org.eclipse.cdt.build.core.prefbase.toolchain">
+							<targetPlatform id="org.eclipse.cdt.build.core.prefbase.toolchain.475467144.1019784572" name=""/>
+							<builder id="org.eclipse.cdt.build.core.settings.default.builder.38258398" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.libs.594039173" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.892991879" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.171296801" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+									<listOptionValue builtIn="false" value="/work/iocBoot/R3.14.12/include/"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/kernel/gfa-linux-3.6.11.5-rt37/include/"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/user/z/zimoch/top/asyn4-21/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/include/os/Linux"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/ethercat-1.5.1/master"/>
+									<listOptionValue builtIn="false" value="/usr/include/libxml2"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/src/libCom/ellLib"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/group/8431/dmm/cvs/G/DRV/ethercatMaster/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/linux"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/group/8431/dmm/cvs/G/DRV/ethercat-1.5.2/include"/>
+								</option>
+								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1301622654" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
+							</tool>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.1870428185" name="GNU C++" superClass="org.eclipse.cdt.build.core.settings.holder">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.343632183" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+									<listOptionValue builtIn="false" value="/work/iocBoot/R3.14.12/include/"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/user/z/zimoch/top/asyn4-21/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/include/os/Linux"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/ethercat-1.5.1/master"/>
+									<listOptionValue builtIn="false" value="/usr/include/libxml2"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/src/libCom/ellLib"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/group/8431/dmm/cvs/G/DRV/ethercatMaster/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/linux"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/group/8431/dmm/cvs/G/DRV/ethercat-1.5.2/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/kernel/gfa-linux-3.6.11.5-rt37/include/"/>
+								</option>
+								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1487309355" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
+							</tool>
+							<tool id="org.eclipse.cdt.build.core.settings.holder.1866935330" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1633188605" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+									<listOptionValue builtIn="false" value="/work/iocBoot/R3.14.12/include/"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/user/z/zimoch/top/asyn4-21/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/include/os/Linux"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/ethercat-1.5.1/master"/>
+									<listOptionValue builtIn="false" value="/usr/include/libxml2"/>
+									<listOptionValue builtIn="false" value="/usr/local/epics/base-3.14.12/src/libCom/ellLib"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/group/8431/dmm/cvs/G/DRV/ethercatMaster/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/linux"/>
+									<listOptionValue builtIn="false" value="/afs/psi.ch/group/8431/dmm/cvs/G/DRV/ethercat-1.5.2/include"/>
+									<listOptionValue builtIn="false" value="/opt/eldk-5.2/kernel/gfa-linux-3.6.11.5-rt37/include/"/>
+								</option>
+								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.821958872" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="ecat2.null.125676013" name="ecat2"/>
+	</storageModule>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="0.1857008921">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="0.853755356">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="0.1234070950">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="0.634342938">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="0.387636802">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="0.458480887">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+</cproject>

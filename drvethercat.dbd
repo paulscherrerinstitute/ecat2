@@ -1,0 +1,20 @@
+#
+#
+# ethercat 2 driver for EtherCAT devices
+#
+#
+driver(drvecat2)
+
+
+device( ai,         CONSTANT, devethercatai,      "ecat2" )
+device( ao,         CONSTANT, devethercatao,      "ecat2" )
+device( bi,         CONSTANT, devethercatbi,      "ecat2" )
+device( bo,         CONSTANT, devethercatbo,      "ecat2" )
+device( mbbi,       CONSTANT, devethercatmbbi,    "ecat2" )
+device( mbbo,       CONSTANT, devethercatmbbo,    "ecat2" )
+device( longin,     CONSTANT, devethercatlongin,  "ecat2" )
+device( longout,    CONSTANT, devethercatlongout, "ecat2" )
+
+
+
+registrar(drvethercat2_registrar)

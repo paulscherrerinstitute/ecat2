@@ -599,7 +599,7 @@ long dev_init_record(
     	sprintf( bitsp2, "(+%d)", priv->dreg_info.bitspec );
     }
 
-    printf( PPREFIX "configured record %s (%s) as d%d.r%d (s%d.sm%d.p%d.e%d%s), offset %d.%d%s (%d bit%s%s)\n",
+    printf( PPREFIX "configured record %s (%s) as d%d.r%d (s%d.sm%d.p%d.e%d%s), offset %d.%d%s (%d bit%s)\n",
     			record->name,
 				record->rdes->name,
 				priv->e->dnr,
