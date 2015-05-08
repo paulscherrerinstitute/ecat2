@@ -188,6 +188,7 @@ typedef struct {
 #define perrex(fmt, args...) { printf( fmt, ##args ); exit(1); }
 
 
+ethcat *drvFindDomain( int dnr );
 
 
 

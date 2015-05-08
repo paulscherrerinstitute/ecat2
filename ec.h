@@ -60,6 +60,7 @@
 #include "ecnode.h"
 #include "eccfg.h"
 #include "ectimer.h"
+#include "ectools.h"
 
 
 

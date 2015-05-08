@@ -458,6 +458,15 @@ void drvethercatAtExit( void *arg )
 
 }
 
+ethcat *drvFindDomain( int dnr )
+{
+	ethcat **ec;
+	for( ec = &ecatList; *ec; ec = &(*ec)->next )
+		if( (*ec)->dnr == dnr )
+			return *ec;
+
+	return NULL;
+}
 
 int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int b_nr )
 {
@@ -713,6 +722,10 @@ long drvethercatConfigure(
 /*                                                                   */
 /*-------------------------------------------------------------------*/
 
+//----------------------
+//
+// Configure
+//
 static const iocshArg drvethercatConfigureArg0 = { "domainnr", 		iocshArgInt };
 static const iocshArg drvethercatConfigureArg1 = { "freq", 			iocshArgDouble };
 static const iocshArg drvethercatConfigureArg2 = { "autoconfig",	iocshArgInt };
@@ -737,10 +750,30 @@ static void drvethercatConfigureFunc( const iocshArgBuf *args )
     );
 }
 
+//----------------------
+//
+// Domain map
+//
+static const iocshArg drvethercatDMapArg0 = { "domainnr", 		iocshArgInt };
+static const iocshArg * const drvethercatDMapArgs[] = {
+    &drvethercatDMapArg0,
+};
+
+static const iocshFuncDef drvethercatDMapDef =
+    { "dmap", 1, drvethercatDMapArgs };
+
+static void drvethercatDMapFunc( const iocshArgBuf *args )
+{
+    dmap(
+        args[0].ival
+    );
+}
+
 
 static void drvethercat2_registrar()
 {
     iocshRegister( &drvethercatConfigureDef, drvethercatConfigureFunc );
+    iocshRegister( &drvethercatDMapDef, drvethercatDMapFunc );
 }
 
 epicsExportRegistrar( drvethercat2_registrar );
