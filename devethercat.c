@@ -148,11 +148,51 @@ static int dev_tokenize( char *s, const char *delims, char **tokens )
 	return ix;
 }
 
+int dev_parse_expression( char *token )
+{
+	int num = 0, mul = 1;
+	char *tail, *s;
+
+	if( !token )
+		return -1;
+
+	if( !isdigit( token[2] ) )
+		return -1;
+
+	s = token+2;
+	while( s[0] )
+	{
+		tail = NULL;
+		num = num + mul*(int)strtol( s, &tail, 10 );
+
+//		printf( "token='%s', s='%s', tail='%s', mul=%d, num=%d\n", token, s, tail ? tail : "NULL", mul, num );
+
+		s = tail;
+		if( s )
+		{
+			if( s[0] == ')' )
+				break;
+		}
+		else
+			break;
+		if( s[0] == '+' )
+			mul = 1;
+		else if( s[0] == '-' )
+			mul = -1;
+		else if( !isspace(s[0]) )
+			return -1;
+		s++;
+	}
+
+	return num;
+}
+
+
 int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE rectype, DBLINK *reclink )
 {
 	char *iotext, *tail;
 	char *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " ._\t";
-	int i, ntokens, ix = 0, len, retv = NOTOK, dreg_nr, num, s_num, sm_num, p_num, e_num, b_num, d_num, r_num;
+	int i, ntokens, ix = 0, len, retv = NOTOK, num, s_num, sm_num, p_num, e_num, b_num, d_num, r_num;
 
 	dev_get_record_type( record, &ix );
 
@@ -206,8 +246,14 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 	{
 		if( !tokens[i] )
 			continue;
+
 		if( isdigit(tokens[i][1]) )
 			num = (int)strtol( tokens[i]+1, &tail, 10 );
+		else if( strlen(tokens[i]) > 3 && tokens[i][1] == '(' && tokens[i][strlen(tokens[i])-1] == ')')
+		{
+			num = dev_parse_expression( tokens[i] );
+//			printf( "parsed %s as %d\n", tokens[i], num );
+		}
 		else
 			num = -1;
 
@@ -232,13 +278,16 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 	free( iotext );
 
 
+/*
 	if( d_num < 0 )
     {
 		free( iotext );
         errlogSevPrintf( errlogFatal, "%s: domain missing (%s) for record %s (type %s)\n", __func__, reclink->text, record->name, rectypes[ix].recname );
         return ERR_BAD_ARGUMENT;
     }
-
+*/
+	if( d_num < 0 )
+		d_num = 0;
 
     priv->e = ethercatOpen( d_num );
     if( priv->e == NULL )
@@ -261,7 +310,7 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
     }
     else if( s_num >=0 && sm_num >= 0 && p_num >= 0 && e_num >=0 )
     {
-    	if( drvGetEntryDesc( priv->e, &priv->dreg_info, &dreg_nr, &priv->pe, s_num, sm_num, p_num, e_num, b_num ) != OK )
+    	if( drvGetEntryDesc( priv->e, &priv->dreg_info, &priv->dreg_nr, &priv->pe, s_num, sm_num, p_num, e_num, b_num ) != OK )
     	{
 
 			errlogSevPrintf( errlogFatal, "%s: %s (type %s): INP/OUT string error (%s) in domain %d\n",

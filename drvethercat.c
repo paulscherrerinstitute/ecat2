@@ -300,7 +300,7 @@ int ec_domain_received( ecnode *d )
 void worker_thread( void *rdata )
 {
 	int wt_counter = 0, received, delayctr, delayed = 0, recd = 0, forwarded = 0;
-	struct timespec rec = { .tv_sec = 0, .tv_nsec = 50000 }, ct;
+	struct timespec rec = { .tv_sec = 0, .tv_nsec = 50000 };
 	ethcat *ec = (ethcat *)rdata;
 	ec_master_t *ecm;
 	ec_domain_t *ecd;
