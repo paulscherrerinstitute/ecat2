@@ -64,33 +64,35 @@ static epicsUInt32 endian_uint32( epicsUInt32 val )
 }
 
 
-int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec )
+int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int wrval )
 {
 	static long get_speclen_counter = 0;
+	char *rw = wrval ? e->w_data : e->r_data;
+
 
 	epicsMutexMustLock( e->rw_lock );
 	switch( bitlen )
 	{
 		case 1:
-				*val = (*(e->r_data + offs) >> bit) & 0x01;
+				*val = (*(rw + offs) >> bit) & 0x01;
 				break;
 		case 8:
 				if( bitspec >= 0 )
-					*val = (*(e->r_data + offs) >> bitspec) & 0x01;
+					*val = (*(rw + offs) >> bitspec) & 0x01;
 				else
-					*val = *(e->r_data + offs);
+					*val = *(rw + offs);
 				break;
 		case 16:
 				if( bitspec >= 0 )
-					*val = (endian_uint16( *(epicsUInt16 *)(e->r_data + offs) ) >> bitspec) & 0x0001;
+					*val = (endian_uint16( *(epicsUInt16 *)(rw + offs) ) >> bitspec) & 0x0001;
 				else
-					*val = endian_uint16( *(epicsUInt16 *)(e->r_data + offs) );
+					*val = endian_uint16( *(epicsUInt16 *)(rw + offs) );
 				break;
 		case 32:
 				if( bitspec >= 0 )
-					*val = (endian_uint32( *(epicsUInt32 *)(e->r_data + offs) ) >> bitspec) & 0x00000001;
+					*val = (endian_uint32( *(epicsUInt32 *)(rw + offs) ) >> bitspec) & 0x00000001;
 				else
-					*val = endian_uint32( *(epicsUInt32 *)(e->r_data + offs) );
+					*val = endian_uint32( *(epicsUInt32 *)(rw + offs) );
 				break;
 		default:
 				get_speclen_counter++;
@@ -108,7 +110,6 @@ int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitle
 
     return 0;
 }
-
 
 
 int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec )

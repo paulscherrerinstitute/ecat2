@@ -363,7 +363,7 @@ long dev_rw_ai( aiRecord *record )
    	CHECK_RECINIT;
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
-    												priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    												priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
     CHECK_STATUS;
 
     return status;
@@ -404,7 +404,7 @@ long dev_rw_ao( aoRecord *record )
    	CHECK_RECINIT;
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    							(epicsUInt32 *)&(record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    							(epicsUInt32 *)&(record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
     CHECK_STATUS;
 
     return status;
@@ -446,7 +446,7 @@ long dev_rw_bi( biRecord *record )
    	CHECK_RECINIT;
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &(record->rval),
-    													priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    													priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
     CHECK_STATUS;
 
     return status;
@@ -532,7 +532,7 @@ long dev_rw_longin( longinRecord *record )
    	CHECK_RECINIT;
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
     CHECK_STATUS;
 
     return status;

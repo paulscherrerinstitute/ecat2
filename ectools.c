@@ -7,7 +7,7 @@
 
 static int ect_print_d_entry_values( int dnr )
 {
-	int i, byte, bit, len;
+	int i, byte, bit, len, inout;
 	epicsUInt32 val;
 	char sbuf[128];
 	ecnode *d = ecn_get_domain_nr( 0, dnr );
@@ -31,7 +31,8 @@ static int ect_print_d_entry_values( int dnr )
 		memset( sbuf, ' ', 64 );
 		sbuf[12] = 0;
 
-		drvGetValue( e, byte, bit, &val, len, -1 );
+		inout = d->ddata.reginfos[i].sync->sync_t.dir == 1 ? 1 : 0;
+		drvGetValue( e, byte, bit, &val, len, -1, inout );
 
 		switch( len )
 		{
