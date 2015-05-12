@@ -20,6 +20,10 @@
 #include <sys/errno.h>
 #include <sys/syscall.h>
 #include <features.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+
+
 
 #include <devLib.h>
 #include <devSup.h>
@@ -61,7 +65,8 @@
 #include "eccfg.h"
 #include "ectimer.h"
 #include "ectools.h"
-
+#include "ecengine.h"
+#include "ecdebug.h"
 
 
 

@@ -159,9 +159,11 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 
 ecnode *ecn_get_child_nr_type( ecnode *parent, int nr, ECN_TYPE type )
 {
-	ecnode *n = parent->child;
-
-	if( !parent || !n )
+	ecnode *n;
+	if( !parent )
+		return NULL;
+	n = parent->child;
+	if( !n )
 		return NULL;
 
 	do {
@@ -179,38 +181,38 @@ ecnode *ecn_get_child_nr_type( ecnode *parent, int nr, ECN_TYPE type )
 
 ecnode *ecn_get_master_nr( int m_nr )
 {
-    return( ecn_get_child_nr_type( ecroot, m_nr, ECNT_MASTER ) );
+    return ecn_get_child_nr_type( ecroot, m_nr, ECNT_MASTER );
 }
 
 ecnode *ecn_get_slave_nr( int m_nr, int s_nr )
 {
-    return( ecn_get_child_nr_type( ecn_get_master_nr( m_nr ), s_nr, ECNT_SLAVE) );
+    return ecn_get_child_nr_type( ecn_get_master_nr( m_nr ), s_nr, ECNT_SLAVE);
 }
 
 ecnode *ecn_get_sync_nr( int m_nr, int s_nr, int sm_nr )
 {
-    return( ecn_get_child_nr_type( ecn_get_slave_nr( m_nr, s_nr), sm_nr, ECNT_SYNC) );
+    return ecn_get_child_nr_type( ecn_get_slave_nr( m_nr, s_nr), sm_nr, ECNT_SYNC) ;
 }
 
 ecnode *ecn_get_pdo_nr( int m_nr, int s_nr, int sm_nr, int p_nr )
 {
-    return( ecn_get_child_nr_type( ecn_get_sync_nr( m_nr, s_nr, sm_nr), p_nr, ECNT_PDO) );
+    return ecn_get_child_nr_type( ecn_get_sync_nr( m_nr, s_nr, sm_nr), p_nr, ECNT_PDO) ;
 }
 
 ecnode *ecn_get_pdo_entry_nr( int m_nr, int s_nr, int sm_nr, int p_nr, int pe_nr )
 {
-    return( ecn_get_child_nr_type( ecn_get_pdo_nr( m_nr, s_nr, sm_nr, p_nr), pe_nr, ECNT_PDO_ENTRY) );
+    return ecn_get_child_nr_type( ecn_get_pdo_nr( m_nr, s_nr, sm_nr, p_nr), pe_nr, ECNT_PDO_ENTRY) ;
 }
 
 
 ecnode *ecn_get_domain_nr( int m_nr, int d_nr )
 {
-    return( ecn_get_child_nr_type( ecn_get_master_nr( m_nr ), d_nr, ECNT_DOMAIN ) );
+    return ecn_get_child_nr_type( ecn_get_master_nr( m_nr ), d_nr, ECNT_DOMAIN );
 }
 
 ecnode *ecn_get_domain_entry_nr( int m_nr, int d_nr, int de_nr )
 {
-    return( ecn_get_child_nr_type( ecn_get_domain_nr( m_nr, d_nr ), de_nr, ECNT_DOMAIN_ENTRY ) );
+    return ecn_get_child_nr_type( ecn_get_domain_nr( m_nr, d_nr ), de_nr, ECNT_DOMAIN_ENTRY );
 }
 
 

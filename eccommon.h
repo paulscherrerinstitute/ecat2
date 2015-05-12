@@ -234,7 +234,7 @@ typedef enum {
 } EC_ERR;
 
 
-#define PPREFIX "***** ecat2: "
+#define PPREFIX "===== ecat2: "
 #define EPT_MAX_TOKENS 16
 
 

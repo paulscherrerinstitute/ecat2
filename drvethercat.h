@@ -54,8 +54,12 @@ typedef struct ecat {
 
 	char *r_data;
 	char *w_data;
-	int dsize;
+
+	char *w_mask;
+
 	epicsMutexId rw_lock;
+
+	int dsize;
 	epicsThreadId dthread; // domain worker thread
 
 	epicsEventId irq;
@@ -72,7 +76,7 @@ typedef struct ecat {
 #define EC_DATAGRAM_NAME_SIZE 20
 /** Size of the EtherCAT address field. */
 #define EC_ADDR_LEN 4
-
+#define EC_MAX_DOMAINS	10
 
 //------------------------------------------------------
 
@@ -90,6 +94,12 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, in
 
 int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask );
 int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask );
+
+
+extern int wt_counter[EC_MAX_DOMAINS];
+extern int delayed[EC_MAX_DOMAINS];
+extern int recd[EC_MAX_DOMAINS];
+extern int forwarded[EC_MAX_DOMAINS];
 
 
 #endif

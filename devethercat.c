@@ -33,6 +33,8 @@ static _rectype rectypes[] = {
 };
 static RECTYPE dev_get_record_type( dbCommon *prec, int *ix )
 {
+	FN_CALLED;
+
 	if( !prec->rdes->name )
 		return REC_ERROR;
 
@@ -52,6 +54,7 @@ static RECTYPE dev_get_record_type( dbCommon *prec, int *ix )
 
 long dev_report( int interest )
 {
+	FN_CALLED;
 
 	return 0;
 }
@@ -59,7 +62,9 @@ long dev_report( int interest )
 
 static long dev_init( int phase )
 {
-  	if( phase == 0 )
+	FN_CALLED;
+
+	if( phase == 0 )
 		initHookRegister( &process_hooks );
 	return 0;
 }
@@ -70,6 +75,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 	ethcat *e;
 	int ix;
 	RECTYPE retv = dev_get_record_type( prec, &ix );
+	FN_CALLED;
 
 	if( !prec->dpvt )
 	{
@@ -108,6 +114,7 @@ int dev_trim_whitespaces( char *out, int len, const char *str )
 {
 	const char *end;
 	int out_size;
+	FN_CALLED;
 
 	if( len == 0 )
 		return FAIL;
@@ -138,6 +145,7 @@ static int dev_tokenize( char *s, const char *delims, char **tokens )
 {
 	char *p, *r;
 	int i, ix = 0;
+	FN_CALLED;
 
 	r = p = s;
 	for( i = 0, p = strsep( &r, delims ); p && ix < EPT_MAX_TOKENS-1; i++, (p = strsep( &r, delims)) )
@@ -152,6 +160,7 @@ int dev_parse_expression( char *token )
 {
 	int num = 0, mul = 1;
 	char *tail, *s;
+	FN_CALLED;
 
 	if( !token )
 		return -1;
@@ -193,6 +202,7 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 	char *iotext, *tail;
 	char *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " ._\t";
 	int i, ntokens, ix = 0, len, retv = NOTOK, num, s_num, sm_num, p_num, e_num, b_num, d_num, r_num;
+	FN_CALLED;
 
 	dev_get_record_type( record, &ix );
 
@@ -359,6 +369,7 @@ long dev_rw_ai( aiRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -372,7 +383,9 @@ long dev_rw_ai( aiRecord *record )
 
 long dev_special_linconv_ai( aiRecord *record, int after )
 {
-    if( after )
+	FN_CALLED;
+
+	if( after )
     {
         record->eslo = (record->eguf - record->egul)/(epicsFloat64)0xffffff;
         record->eoff = record->egul;
@@ -400,6 +413,7 @@ long dev_rw_ao( aoRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -413,6 +427,7 @@ long dev_rw_ao( aoRecord *record )
 
 long dev_special_linconv_ao( aoRecord* record, int after )
 {
+	FN_CALLED;
 
 	if( after )
     {
@@ -442,6 +457,7 @@ long dev_rw_bi( biRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -464,6 +480,7 @@ long dev_rw_bo( boRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -485,6 +502,7 @@ long dev_rw_mbbi( mbbiRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -506,6 +524,7 @@ long dev_rw_mbbo( mbboRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -528,6 +547,7 @@ long dev_rw_longin( longinRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -550,6 +570,7 @@ long dev_rw_longout( longoutRecord *record )
 {
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
 
    	CHECK_RECINIT;
 
@@ -586,6 +607,7 @@ long dev_init_record(
   	int ix = 0;
   	char bitsp[20] = { 0 }, bitsp2[20] = { 0 };
   	RECTYPE rectype = dev_get_record_type( record, &ix );
+	FN_CALLED;
 
   	if( rectype == REC_ERROR )
     {

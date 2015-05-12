@@ -1,11 +1,5 @@
 #include "ec.h"
 
-#include <fcntl.h>
-#include <errno.h>
-#include <alarm.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-
 //-------------------------------------------------------------------
 
 
@@ -37,364 +31,6 @@ static inline void *_zalloc( int size )
 
 
 
-
-
-static epicsUInt16 endian_uint16( epicsUInt16 val )
-{
-	epicsUInt16 retv = 0;
-	char *p = (char *)(&retv);
-
-	*p = val & 0xff;
-	*(p+1) = (val & 0xff00) >> 8;
-
-	return retv;
-}
-
-static epicsUInt32 endian_uint32( epicsUInt32 val )
-{
-	epicsUInt32 retv = 0;
-	char *p = (char *)(&retv);
-
-	*p 		= val & 0x000000ff;
-	*(p+1) 	= (val & 0x0000ff00) >> 8;
-	*(p+2) 	= (val & 0x00ff0000) >> 16;
-	*(p+3) 	= (val & 0xff000000) >> 24;
-
-	return retv;
-}
-
-
-int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int wrval )
-{
-	static long get_speclen_counter = 0;
-	char *rw = wrval ? e->w_data : e->r_data;
-
-
-	epicsMutexMustLock( e->rw_lock );
-	switch( bitlen )
-	{
-		case 1:
-				*val = (*(rw + offs) >> bit) & 0x01;
-				break;
-		case 8:
-				if( bitspec >= 0 )
-					*val = (*(rw + offs) >> bitspec) & 0x01;
-				else
-					*val = *(rw + offs);
-				break;
-		case 16:
-				if( bitspec >= 0 )
-					*val = (endian_uint16( *(epicsUInt16 *)(rw + offs) ) >> bitspec) & 0x0001;
-				else
-					*val = endian_uint16( *(epicsUInt16 *)(rw + offs) );
-				break;
-		case 32:
-				if( bitspec >= 0 )
-					*val = (endian_uint32( *(epicsUInt32 *)(rw + offs) ) >> bitspec) & 0x00000001;
-				else
-					*val = endian_uint32( *(epicsUInt32 *)(rw + offs) );
-				break;
-		default:
-				get_speclen_counter++;
-				break;
-	}
-	epicsMutexUnlock( e->rw_lock );
-
-    return 0;
-}
-
-int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
-{
-
-	*val = endian_uint32(*(epicsUInt32 *)(e->r_data + offs)) & (epicsUInt32)((((1 << nobt) - 1) & mask) << shift);
-
-    return 0;
-}
-
-
-int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec )
-{
-	int retv = 0, i;
-	char mask;
-
-	epicsMutexMustLock( e->rw_lock );
-	switch( bitlen )
-	{
-		case 1:
-				if( *val & 0x01 )
-					*(e->w_data + offs) |= (0x01 << bit);
-				else
-					*(e->w_data + offs) &= ~(0x01 << bit);
-				break;
-		case 8:
-				if( bitspec >= 0 )
-				{
-					*(e->w_data + offs) &= ~(1 << bitspec);
-					*(e->w_data + offs) |= ((*val & 0x01) << bitspec);
-				}
-				else
-					*(e->w_data + offs) = *val;
-				break;
-		case 16:
-				if( bitspec >= 0 )
-				{
-					*(epicsUInt16 *)(e->w_data + offs) &= ~(1 << bitspec);
-					*(epicsUInt16 *)(e->w_data + offs) |= ((endian_uint16(*val) & 0x0001) << bitspec);
-				}
-				else
-					*(epicsUInt16 *)(e->w_data + offs) 	= endian_uint16(*val);
-				break;
-		case 32:
-				if( bitspec >= 0 )
-				{
-					*(epicsUInt32 *)(e->w_data + offs) &= ~(1 << bitspec);
-					*(epicsUInt32 *)(e->w_data + offs) |= ((endian_uint32(*val) & 0x00000001) << bitspec);
-				}
-				else
-					*(epicsUInt32 *)(e->w_data + offs) 	= endian_uint32(*val);
-				break;
-		default:
-				if( bitlen < 1 || bitlen > 8 )
-				{
-					errlogSevPrintf( errlogFatal, "%s: bitlen %d not allowed\n", __func__, bitlen );
-					retv = 1; // error, unaligned field
-					break;
-				}
-				mask = 0;
-				for( i = bit; i < (bit+bitlen); i++ )
-					mask |= (0x01 << i);
-				*(e->w_data + offs) &= ~mask;
-				*(e->w_data + offs) |= (*val & 0x000000ff);
-				break;
-	}
-	epicsMutexUnlock( e->rw_lock );
-
-    return retv;
-}
-
-int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
-{
-
-	epicsMutexMustLock( e->rw_lock );
-
-#if 0
-	printf( "\n%s: before: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x, nobt=%d, shift=%d, mask=%d\n", __func__,
-			*val, endian_uint32( *val ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, (epicsUInt32)((((1 << nobt) - 1) << shift) & mask), nobt, shift, mask );
-#endif
-
-	*(epicsUInt32 *)(e->w_data + offs) &= endian_uint32(~(epicsUInt32)((((1 << nobt) - 1) & mask) << shift) );
-	*(epicsUInt32 *)(e->w_data + offs) |= endian_uint32( *val  & (epicsUInt32)((((1 << nobt) - 1) & mask) << shift) );
-
-#if 0
-	printf( "\n%s:  after: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x, nobt=%d, shift=%d, mask=%d\n", __func__,
-			*val, endian_uint32( *val ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, (epicsUInt32)((((1 << nobt) - 1) << shift) & mask), nobt, shift, mask );
-#endif
-	epicsMutexUnlock( e->rw_lock );
-
-	return 0;
-}
-
-
-
-
-static void create_masks( ecnode *d, char *rmask, char *wmask )
-{
-	int i, j, nregs = d->ddata.num_of_regs,
-			offs, bit, len;
-	char *mask;
-	ec_direction_t dir;
-
-	memset( rmask, 0, d->ddata.dsize );
-	memset( wmask, 0, d->ddata.dsize );
-
-	for( i = 0; i < nregs; i++ )
-	{
-		dir = d->ddata.reginfos[i].sync->sync_t.dir;
-		offs = d->ddata.reginfos[i].byte;
-		bit = d->ddata.reginfos[i].bit;
-		len = d->ddata.reginfos[i].bit_length;
-		mask = (dir ? wmask : rmask);
-
-		if( len >= 8 )
-			memset( mask+offs, 0xff, len/8 );
-		if( len % 8 )
-			for( j = bit; j < bit + (len % 8); j++ )
-				*(mask + offs + len/8) |= (1 << j);
-	}
-
-}
-
-inline void process_read_values( ecnode *d, char *rmask )
-{
-
-	memcpy( d->ddata.rmem, d->ddata.dmem, d->ddata.dsize );
-}
-
-inline void process_write_values( ecnode *d, char *wmask )
-{
-	register int i;
-
-	for( i = 0; i < d->ddata.dsize; i++ )
-	{
-		d->ddata.dmem[i] &= ~wmask[i];
-		d->ddata.dmem[i] |= d->ddata.wmem[i];
-	}
-
-}
-
-/*-------------------------------------------------------------------*/
-/*                                                                   */
-/* IRQ thread                                                        */
-/*                                                                   */
-/*-------------------------------------------------------------------*/
-void irq_thread( void *rdata )
-{
-	ethcat *ec = (ethcat *)rdata;
-
-    while(1)
-    {
-        epicsEventMustWait( ec->irq );
-
-        scanIoRequest( ec->r_scan );
-		scanIoRequest( ec->w_scan );
-
-    }
-
-}
-
-#define IOCTL_MSG_DREC _IOWR(PSI_ECAT_VERSION_MAGIC, 100, int)
-
-#if 1
-int ec_domain_received( ecnode *d )
-{
-    int fd, retv;
-	ioctl_trans io;
-
-	io.dnr = d->nr;
-
-	if( (fd = open("/dev/psi_ethercat", O_RDWR)) < 0)
-	{
-		errlogSevPrintf( errlogFatal, "%s: Cannot open device /dev/psi_ethercat\n", __func__ );
-		return FAIL;
-	}
-
-	if( (retv = ioctl( fd, IOCTL_MSG_DREC, &io)) < 0 )
-	{
-		close(fd);
-		errlogSevPrintf( errlogFatal, "%s: Register does not exist, or cannot access device /dev/psi_ethercat\n", __func__ );
-		return FAIL;
-	}
-
-	close(fd);
-
-	return retv;
-}
-#endif
-
-
-
-/*-------------------------------------------------------------------*/
-/*                                                                   */
-/* Worker thread                                                     */
-/*                                                                   */
-/*-------------------------------------------------------------------*/
-void worker_thread( void *rdata )
-{
-	int wt_counter = 0, received, delayctr, delayed = 0, recd = 0, forwarded = 0;
-	struct timespec rec = { .tv_sec = 0, .tv_nsec = 50000 };
-	ethcat *ec = (ethcat *)rdata;
-	ec_master_t *ecm;
-	ec_domain_t *ecd;
-	char *rmask, *wmask;
-
-	if( !ec->m )
-	{
-		errlogSevPrintf( errlogFatal, "%s: master not valid\n", __func__ );
-		return;
-	}
-	if( !ec->d )
-	{
-		errlogSevPrintf( errlogFatal, "%s: domain not valid\n", __func__ );
-		return;
-	}
-	if( !ec->r_data || !ec->w_data )
-	{
-		errlogSevPrintf( errlogFatal, "%s: Internal error - r_data/w_data not initialized\n", __func__ );
-		return;
-	}
-	if( tmr_init( ec->d->nr, ec->rate ) != OK )
-	{
-		errlogSevPrintf( errlogFatal, "%s: CPU timer %d failure\n", __func__, ec->d->nr );
-		return;
-	}
-
-	ecm = ec->m->mdata.master;
-	ecd = ec->d->domain_t;
-    rmask = calloc( 1, ec->d->ddata.dsize );
-    wmask = calloc( 1, ec->d->ddata.dsize );
-	if( !rmask || !wmask )
-	{
-		errlogSevPrintf( errlogFatal, "%s: allocating memory for domain rw masks failed\n", __func__ );
-		return;
-	}
-
-    create_masks( ec->d, rmask, wmask );
-
-	//----------------------
-	while( 1 )
-	{
-
-		ecrt_master_receive( ecm );
-		ecrt_domain_process( ecd );
-
-		epicsMutexMustLock( ec->rw_lock );
-    	process_read_values( ec->d, rmask );
-		process_write_values( ec->d, wmask );
-		epicsMutexUnlock( ec->rw_lock );
-
-		epicsEventSignal( ec->irq );
-
-		ecrt_domain_queue( ecd );
-		ecrt_master_send( ecm );
-
-		forwarded += tmr_wait( 0 );
-
-		delayctr = 0;
-		while( 1 )
-		{
-            ecrt_master_receive( ecm );
-    		if( ec_domain_received( ec->d ) )
-    		{
-    			recd++;
-            	break;
-    		}
-			delayed++;
-            delayctr++;
-
-			if( delayctr > 10 )
-				break;
-			clock_nanosleep( CLOCK_MONOTONIC, 0, &rec, NULL );
-		}
-
-		wt_counter++;
-
-#if 0
-		if( !(wt_counter % 5000) )
-			printf( "wt_counter=%d, delayed=%d, recd=%d, forwarded=%d\n",
-							wt_counter, delayed, recd, forwarded );
-#endif
-	}
-
-	printf( "wt_counter=%d, delayed=%d, recd=%d\n", wt_counter, delayed, received );
-
-	// cleanup not really necessary, but...
-	free( wmask );
-	free( rmask );
-
-}
-
-
-
 //------------------------------------------------------------
 //
 // Hooks
@@ -405,6 +41,7 @@ void process_hooks( initHookState state )
 {
 	ethcat **ec;
 	static int workthreadsrunning = 0;
+	FN_CALLED;
 
 	switch( state )
 	{
@@ -418,9 +55,9 @@ void process_hooks( initHookState state )
 				for( ec = &ecatList; *ec; ec = &(*ec)->next )
 				{
 					(*ec)->dthread = epicsThreadMustCreate( ECAT_DNAME, 60, // epicsThreadPriorityLow,
-										epicsThreadGetStackSize(epicsThreadStackSmall), &worker_thread, *ec );
+										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
 					(*ec)->irqthread = epicsThreadMustCreate( ECAT_DNAME, epicsThreadPriorityLow,
-										epicsThreadGetStackSize(epicsThreadStackSmall), &irq_thread, *ec );
+										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_irq_thread, *ec );
 				}
 				break;
 
@@ -438,6 +75,8 @@ void process_hooks( initHookState state )
 ethcat *ethercatOpen( int domain_nr )
 {
 	ethcat *e;
+	FN_CALLED;
+
 	for( e = ecatList; e; e = e->next )
 	{
 		if( e->dnr == domain_nr )
@@ -450,6 +89,8 @@ ethcat *ethercatOpen( int domain_nr )
 void drvethercatAtExit( void *arg )
 {
 	ethcat *e = (ethcat *)arg;
+
+	FN_CALLED;
 
 	pinfo( "%s: Deactivating master, domain %d\n", __func__, e->dnr );
 	ecrt_master_deactivate( ecroot->child->mdata.master );
@@ -473,6 +114,7 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 {
 	ecnode *d = e->d;
 
+	FN_CALLED;
 	if( regnr < 0 || regnr > d->ddata.num_of_regs )
 	{
 		errlogSevPrintf( errlogFatal, "%s: Domain register %d is out of range for this domain\n", __func__, regnr );
@@ -499,9 +141,10 @@ int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pe
 {
 	ecnode *d = e->d, *pe;
 	int i;
+	FN_CALLED;
 
 	pe = ecn_get_pdo_entry_nr( 0, s_nr, sm_nr, p_nr, e_nr );
-	if( !e )
+	if( !pe )
 	{
 		errlogSevPrintf( errlogFatal, "%s: PDO entry s%d.sm%d.p%d.e%d not found\n", __func__, s_nr, sm_nr, p_nr, e_nr );
 		return FAIL;
@@ -544,6 +187,7 @@ int drvDomainExists( int mnr, int dnr )
 {
 	ecnode *m, *d;
 
+	FN_CALLED;
 
 	m = ecn_get_child_nr_type( ecroot, mnr, ECNT_MASTER );
 	if( !m )
@@ -555,8 +199,6 @@ int drvDomainExists( int mnr, int dnr )
 
 	return OK;
 }
-#define EC_IOCTL_DOM_RECEIVED         EC_IOWR(0xa0, ec_ioctl_voe_t)
-
 
 /*-------------------------------------------------------------------*/
 /*                                                                   */
@@ -575,6 +217,7 @@ long drvethercatConfigure(
     ethcat **ec;
     ecnode *m;
 
+	FN_CALLED;
 
     // check arguments
     if( domain_nr < 0 ||
@@ -683,6 +326,12 @@ long drvethercatConfigure(
 	(*ec)->r_data = (*ec)->d->ddata.rmem;
 	(*ec)->w_data = (*ec)->d->ddata.wmem;
 
+    (*ec)->w_mask = calloc( 1, (*ec)->d->ddata.dsize );
+	if( !(*ec)->w_mask )
+	{
+		errlogSevPrintf( errlogFatal, "%s: allocating memory for domain wmask failed\n", __func__ );
+		return ERR_OUT_OF_MEMORY;
+	}
 
 	//----------------------------------
 	// init irq scanning
@@ -755,6 +404,7 @@ static void drvethercatConfigureFunc( const iocshArgBuf *args )
 //
 // Domain map
 //
+//----------------------
 static const iocshArg drvethercatDMapArg0 = { "domainnr", 		iocshArgInt };
 static const iocshArg * const drvethercatDMapArgs[] = {
     &drvethercatDMapArg0,
@@ -771,10 +421,46 @@ static void drvethercatDMapFunc( const iocshArgBuf *args )
 }
 
 
+
+//----------------------
+//
+// ecstat
+//
+//----------------------
+static const iocshArg drvethercatstatArg0 = { "level", 		iocshArgInt };
+static const iocshArg drvethercatstatArg1 = { "dnr", 		iocshArgInt };
+static const iocshArg * const drvethercatstatArgs[] = {
+    &drvethercatstatArg0,
+    &drvethercatstatArg1,
+};
+
+static const iocshFuncDef drvethercatstatDef =
+    { "stat", 2, drvethercatstatArgs };
+
+static void drvethercatStatFunc( const iocshArgBuf *args )
+{
+    stat(
+        args[0].ival,
+        args[1].ival
+    );
+}
+
+
+
+
+
+
+//=====================================================
+//
+// EPICS support structures
+//
+//=====================================================
+
 static void drvethercat2_registrar()
 {
     iocshRegister( &drvethercatConfigureDef, drvethercatConfigureFunc );
     iocshRegister( &drvethercatDMapDef, drvethercatDMapFunc );
+    iocshRegister( &drvethercatstatDef, drvethercatStatFunc );
 }
 
 epicsExportRegistrar( drvethercat2_registrar );
@@ -783,7 +469,6 @@ epicsExportRegistrar( drvethercat2_registrar );
 
 
 
-/* EPICS drvSupport structure */
 struct {
     long number;
     long (*report) ();
