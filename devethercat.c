@@ -3,7 +3,6 @@
 //----------------------------------------------------------------------------------------------
 
 
-
 typedef struct _dev_ethercat_private {
 	ethcat *e;
 
@@ -15,7 +14,7 @@ typedef struct _dev_ethercat_private {
 } devethercat_private;
 
 
-static _rectype rectypes[] = {
+_rectype rectypes[] = {
 		{ "ai", 		REC_AI, 			RIO_READ },
 		{ "bi", 		REC_BI, 			RIO_READ },
 		{ "mbbi", 		REC_MBBI, 			RIO_READ },
@@ -141,7 +140,7 @@ int dev_trim_whitespaces( char *out, int len, const char *str )
 }
 
 
-static int dev_tokenize( char *s, const char *delims, char **tokens )
+int dev_tokenize( char *s, const char *delims, char **tokens )
 {
 	char *p, *r;
 	int i, ix = 0;
@@ -173,8 +172,6 @@ int dev_parse_expression( char *token )
 	{
 		tail = NULL;
 		num = num + mul*(int)strtol( s, &tail, 10 );
-
-//		printf( "token='%s', s='%s', tail='%s', mul=%d, num=%d\n", token, s, tail ? tail : "NULL", mul, num );
 
 		s = tail;
 		if( s )
@@ -288,14 +285,6 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 	free( iotext );
 
 
-/*
-	if( d_num < 0 )
-    {
-		free( iotext );
-        errlogSevPrintf( errlogFatal, "%s: domain missing (%s) for record %s (type %s)\n", __func__, reclink->text, record->name, rectypes[ix].recname );
-        return ERR_BAD_ARGUMENT;
-    }
-*/
 	if( d_num < 0 )
 		d_num = 0;
 
@@ -346,9 +335,15 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 if( !priv )                                                                                                \
 {                                                                                                          \
     recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                     \
-    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly\n", __func__, record->name );    \
+    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (1)\n", __func__, record->name );    \
     return -1;                                                                                             \
-}                                                                                                          \
+}\
+if( !priv->e )                                                                                                \
+{                                                                                                          \
+    recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                     \
+    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2)\n", __func__, record->name );    \
+    return -1;                                                                                             \
+}
 
 #define CHECK_STATUS                                                                                                 \
 if( status )                                                                                                         \
@@ -372,6 +367,7 @@ long dev_rw_ai( aiRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
     												priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
@@ -507,7 +503,7 @@ long dev_rw_mbbi( mbbiRecord *record )
    	CHECK_RECINIT;
 
     status = drvGetValueMasked( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval, priv->dreg_info.bitlen,
-    									record->nobt, record->shft, record->mask );
+    							priv->dreg_info.nobt, priv->dreg_info.shft, priv->dreg_info.mask );
     CHECK_STATUS;
 
     return status;
@@ -529,7 +525,7 @@ long dev_rw_mbbo( mbboRecord *record )
    	CHECK_RECINIT;
 
     status = drvSetValueMasked( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval, priv->dreg_info.bitlen,
-			record->nobt, record->shft, record->mask );
+    							priv->dreg_info.nobt, priv->dreg_info.shft, priv->dreg_info.mask );
     CHECK_STATUS;
 
     return status;
@@ -589,13 +585,40 @@ long dev_rw_longout( longoutRecord *record )
 // INIT
 //
 //----------------------------------------------------------
+
+static void add_record( int ix, devethercat_private *priv, dbCommon *record )
+{
+	conn_rec **cr;
+    // is this rec already registered?
+    for( cr = &priv->pe->cr; *cr; cr = &(*cr)->next )
+    	if( (*cr)->rec == record )
+    	{
+    		errlogSevPrintf( errlogFatal, "%s: Somehow, this same record has already been registered\n", __func__ );
+    		return;
+    	}
+
+
+    *cr = calloc( 1, sizeof(conn_rec) );
+	if( *cr == NULL )
+	{
+		errlogSevPrintf( errlogFatal, "%s: Memory allocation failed.\n", __func__ );
+		return;
+	}
+
+	(*cr)->ix = ix;
+    (*cr)->rectype = rectypes[ix].rtype;
+    (*cr)->rec = record;
+	(*cr)->dreg_info = &priv->dreg_info;
+
+}
+
 #define PARSE_IO_STR( rtype, inout )                                                                         \
 reclink = &((rtype##Record *)record)->inout;                                                               \
 if( dev_parse_io_string( priv, record, rectype, reclink ) != OK )                                            \
 {                                                                                                            \
 	errlogSevPrintf( errlogFatal, "%s: Parsing INP/OUT link '%s' failed (record %s, type %s)\n", __func__,   \
 			reclink->text, record->name, rectypes[ix].recname );                                             \
-	return S_dev_badArgument;                                                                                \
+	return ERR_BAD_ARGUMENT;                                                                                \
 }
 
 long dev_init_record(
@@ -644,10 +667,16 @@ long dev_init_record(
 
     	case REC_MBBI:
 						PARSE_IO_STR( mbbi, inp );
+						priv->dreg_info.nobt = ((mbbiRecord *)record)->nobt;
+						priv->dreg_info.shft = ((mbbiRecord *)record)->shft;
+						priv->dreg_info.mask = ((mbbiRecord *)record)->mask << ((mbbiRecord *)record)->shft;
     					break;
 
     	case REC_MBBO:
 						PARSE_IO_STR( mbbo, out );
+						priv->dreg_info.nobt = ((mbboRecord *)record)->nobt;
+						priv->dreg_info.shft = ((mbboRecord *)record)->shft;
+						priv->dreg_info.mask = ((mbboRecord *)record)->mask << ((mbboRecord *)record)->shft;
     					break;
 
     	case REC_LONGIN:
@@ -660,8 +689,10 @@ long dev_init_record(
 
     	default:
 						errlogSevPrintf( errlogFatal, "%s: record %s currently not supported\n", __func__, record->name );
-						return S_dev_badArgument;
+						return ERR_BAD_ARGUMENT;
     }
+
+	add_record( ix, priv, record );
 
     // make a somewhat prettier printout
     if( priv->dreg_info.bitspec >= 0 )

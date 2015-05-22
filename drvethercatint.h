@@ -75,30 +75,6 @@ devsup devethercat##rectype = {             \
 epicsExportAddress( dset, devethercat##rectype );
 
 
-typedef enum {
-	REC_ERROR = 0,
-
-	REC_AI,
-	REC_AO,
-	REC_BI,
-	REC_BO,
-	REC_MBBI,
-	REC_MBBO,
-	REC_MBBIDIRECT,
-	REC_MBBODIRECT,
-	REC_LONGIN,
-	REC_LONGOUT,
-	REC_STRINGIN,
-	REC_STRINGOUT,
-	REC_WAVEFORM,
-	REC_FANOUT,
-	REC_DFANOUT,
-	REC_CALC,
-	REC_CALCOUT,
-	REC_CPID,
-
-	REC_LAST,
-} RECTYPE;
 
 typedef enum {
 	RIO_ERROR = 0x00,
@@ -134,7 +110,10 @@ typedef struct {
 
 
 ethcat *drvFindDomain( int dnr );
+int dev_tokenize( char *s, const char *delims, char **tokens );
+int dev_parse_expression( char *token );
 
+extern _rectype rectypes[];
 
 
 #endif

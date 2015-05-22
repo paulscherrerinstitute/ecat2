@@ -69,7 +69,55 @@ typedef enum  {
 	DCT_AUTOCONFIG = 0x10
 } DOMAIN_CONFIG_TYPE;
 
+
+typedef enum {
+	REC_ERROR = 0,
+
+	REC_AI,
+	REC_AO,
+	REC_BI,
+	REC_BO,
+	REC_MBBI,
+	REC_MBBO,
+	REC_MBBIDIRECT,
+	REC_MBBODIRECT,
+	REC_LONGIN,
+	REC_LONGOUT,
+	REC_STRINGIN,
+	REC_STRINGOUT,
+	REC_WAVEFORM,
+	REC_FANOUT,
+	REC_DFANOUT,
+	REC_CALC,
+	REC_CALCOUT,
+	REC_CPID,
+
+	REC_LAST,
+} RECTYPE;
 //------------------------------------------
+
+typedef struct {
+	int offs;
+	int bit;
+	int bitlen;
+
+	int bitspec;
+
+	int rw_dir;
+	int nobt;
+	int shft;
+	int mask;
+} domain_register;
+
+typedef struct _conn_rec {
+	struct _conn_rec *next;
+
+	int ix; // index in rectypes, to speed up printing
+	RECTYPE rectype;
+	dbCommon *rec;
+	domain_register *dreg_info;
+} conn_rec;
+
 
 
 typedef struct _domain_reginfo {
@@ -85,11 +133,18 @@ typedef struct _domain_reginfo {
 	unsigned int byte;
 	unsigned int bit;
 	unsigned int bit_length;
+
+
 } domain_reg_info;
 
-typedef struct {
-	ecnode *from;
-	ecnode *to;
+typedef struct _sts_entry {
+	struct _sts_entry *next;
+
+	ecnode *pdo_entry_from;
+	ecnode *pdo_entry_to;
+	domain_register from;
+	domain_register to;
+
 } sts_entry;
 
 
@@ -103,13 +158,6 @@ typedef struct _ecd_domain {
     int is_running;
     int rate; // in microseconds
 
-   // struct hrtimer_sleeper ts;
-
-//    struct mutex rwmut;
-
-//    struct semaphore rsem;
-//    struct semaphore wsem;
-//    struct semaphore rwsem;
     char *dmem;    // domain mem
     char *rmem;    // R mem
     char *wmem;    // W mem
@@ -117,6 +165,7 @@ typedef struct _ecd_domain {
     int dsize;
 
     // sts
+	epicsMutexId sts_lock;
     int num_of_sts_entries;
     sts_entry *sts;
 
@@ -201,6 +250,10 @@ typedef struct _ecnode {
 	ecnode *domain_entry;
 
 	int id;
+
+
+	conn_rec *cr;
+
 	//ec_pdo_entry_t pe;
 } ecnode;
 

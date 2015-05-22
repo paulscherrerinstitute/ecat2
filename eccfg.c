@@ -150,7 +150,7 @@ int domain_create_autoconfig( ecnode *d )
 	ec_pdo_entry_reg_t *dc;
 
 	d->ddata.dcfgtype = DCT_NOT_CONFIGURED;
-	pinfo( "Creating autoconfig domain...\n" );
+	pinfo( "%s: Autoconfiguring domain...\n", __func__ );
 
 	ecn_count_pdo_entries( ecn_get_child_nr_type( ecroot, 0, ECNT_MASTER ), &ndc );
 	if( !ndc )
@@ -158,9 +158,9 @@ int domain_create_autoconfig( ecnode *d )
 //	pinfo( "Domain autoconfig: found %d entries\n", ndc );
 
     if( !(d->ddata.regs = (ec_pdo_entry_reg_t *)calloc( ndc+1, sizeof(ec_pdo_entry_reg_t) )) )
-        perrret( "Memory allocation for domain config failed\n" );
+        perrret( "%s: Memory allocation for domain config failed\n", __func__ );
     if( !(d->ddata.reginfos = (domain_reg_info *)calloc( ndc+1, sizeof(domain_reg_info) )) )
-        perrret( "Memory allocation for domain config failed\n" );
+        perrret( "%s: Memory allocation for domain config failed\n", __func__ );
 	d->ddata.num_of_regs = ndc;
 
 	slave = m->child;
@@ -226,6 +226,7 @@ int domain_create_autoconfig( ecnode *d )
 
 
 
+
 ecnode *add_domain( ecnode *m, int rate )
 {
 	int nr = ecn_get_first_free_child_nr_type( m, ECNT_DOMAIN );
@@ -239,20 +240,34 @@ ecnode *add_domain( ecnode *m, int rate )
 	d->ddata.dmem = d->ddata.rmem = d->ddata.wmem = NULL;
 
 	if( !(d->domain_t = ecrt_master_create_domain( m->mdata.master )) )
-        perrret( "Domain creation failed!\n" );
+        perrret( "%s: Domain creation failed!\n", __func__ );
 
-//    pinfo( "Domain creation succeeded\n" );
-
-
+    pinfo( "%s: Domain %d creation succeeded\n", __func__, d->nr );
 
     if( !(nregs = domain_create_autoconfig( d )) )
         return 0;
-	//pinfo( "Domain %d: Autoconfig found %d entries\n", d->nr, nregs );
+	pinfo( "Domain %d: Autoconfig found %d entries\n", d->nr, nregs );
 
+#if 0
+int i;
+	for( i = 0; i < nregs; i++ )
+	{
+		printf( "%d.  pos %d, vendor 0x%x, pcode 0x%x, 0x%04x:%02x, blen=%d\n",
+				i,
+				d->ddata.regs[i].position,
+				d->ddata.regs[i].vendor_id,
+				d->ddata.regs[i].product_code,
+				d->ddata.regs[i].index,
+				d->ddata.regs[i].subindex,
+				d->ddata.reginfos[i].bit_length
+				);
+	}
+#endif
 
 	if( ecrt_domain_reg_pdo_entry_list( d->domain_t, d->ddata.regs ))
-		perrret( "Entry domain registration failed!\n" );
+		perrret( "%s: Domain pdo entry list registration failed!\n", __func__ );
 
+	printf( "------------ after reg list ---------------\n" );
 	size = ecrt_domain_size( d->domain_t );
 	if( size <= 0 )
 		perrret( "%s: ecrt_domain_size() returned %s value %d\n", __func__, !size ? "zero" : "negative", size );
@@ -294,7 +309,6 @@ ecnode *add_domain( ecnode *m, int rate )
 
 	if( !d->ddata.dmem )
 		perrret( "%s: cannot get or allocate domain memory\n", __func__ );
-
 
 
     return d;

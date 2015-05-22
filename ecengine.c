@@ -38,6 +38,12 @@ int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
 	char *rw = wrval ? e->w_data : e->r_data;
 
 	FN_CALLED3;
+	if( !e || !val )
+		return ERR_OPERATION_FAILED;
+
+	if( !e->r_data || !e->w_data )
+		return ERR_OPERATION_FAILED;
+
 
 	epicsMutexMustLock( e->rw_lock );
 	switch( bitlen )
@@ -74,22 +80,17 @@ int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
     return 0;
 }
 
-int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
-{
-
-	FN_CALLED3;
-
-	*val = endian_uint32(*(epicsUInt32 *)(e->r_data + offs)) & (epicsUInt32)((((1 << nobt) - 1) & mask) << shift);
-
-    return 0;
-}
-
-
 int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec )
 {
 	int retv = 0;
 
 	FN_CALLED;
+
+	if( !e || !val )
+		return ERR_OPERATION_FAILED;
+
+	if( !e->w_data )
+		return ERR_OPERATION_FAILED;
 
 	epicsMutexMustLock( e->rw_lock );
 	switch( bitlen )
@@ -156,27 +157,62 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
     return retv;
 }
 
+#define SHOW_GET_DEBUG 0
+#define SHOW_SET_DEBUG 0
+int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
+{
+
+	FN_CALLED3;
+
+	if( !e || !rval )
+		return ERR_OPERATION_FAILED;
+
+	if( !e->r_data )
+		return ERR_OPERATION_FAILED;
+
+#if SHOW_SET_DEBUG
+	printf( "\n%s:get before: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x\n", __func__,
+			*rval, endian_uint32( *rval ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, mask );
+#endif
+	*rval = (endian_uint32(*(epicsUInt32 *)(e->r_data + offs)) & mask);
+	*(epicsUInt32 *)(e->w_mask + offs) |= mask;
+
+#if SHOW_SET_DEBUG
+	printf( "%s:get  after: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x\n", __func__,
+			*rval, endian_uint32( *rval ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, mask );
+#endif
+
+    return 0;
+}
+
+
 int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
 {
 	FN_CALLED;
 
+	if( !e || !val )
+		return ERR_OPERATION_FAILED;
+
+	if( !e->w_data || !e->w_mask )
+		return ERR_OPERATION_FAILED;
+
 	epicsMutexMustLock( e->rw_lock );
 
-#if 0
-	printf( "\n%s: before: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x, nobt=%d, shift=%d, mask=%d\n", __func__,
-			*val, endian_uint32( *val ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, (epicsUInt32)((((1 << nobt) - 1) << shift) & mask), nobt, shift, mask );
+#if SHOW_GET_DEBUG
+	printf( "\n%s: set before: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x\n", __func__,
+			*val, endian_uint32( *val ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, mask );
 #endif
 
-	*(epicsUInt32 *)(e->w_data + offs) &= endian_uint32(~(epicsUInt32)((((1 << nobt) - 1) & mask) << shift) );
-	*(epicsUInt32 *)(e->w_data + offs) |= endian_uint32( *val  & (epicsUInt32)((((1 << nobt) - 1) & mask) << shift) );
+	*(epicsUInt32 *)(e->w_data + offs) &= endian_uint32( ~mask );
+	*(epicsUInt32 *)(e->w_data + offs) |= endian_uint32( *val );
+	*(epicsUInt32 *)(e->w_mask + offs) |= endian_uint32( mask );
 
-	*(epicsUInt32 *)(e->w_mask + offs) |= endian_uint32( (epicsUInt32)((((1 << nobt) - 1) & mask) << shift) );
-
-#if 0
-	printf( "\n%s:  after: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x, nobt=%d, shift=%d, mask=%d\n", __func__,
-			*val, endian_uint32( *val ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, (epicsUInt32)((((1 << nobt) - 1) << shift) & mask), nobt, shift, mask );
+#if SHOW_GET_DEBUG
+	printf( "%s:  set after: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x\n", __func__,
+			*val, endian_uint32( *val ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, mask );
 #endif
 	epicsMutexUnlock( e->rw_lock );
+
 
 	return 0;
 }
@@ -235,10 +271,47 @@ void ec_irq_thread( void *data )
 /*                                                                   */
 /*-------------------------------------------------------------------*/
 
-inline void process_read_values( ecnode *d )
+void copy_1bit( char *source, int sbyte_offs, int sbit_offs, char *dest, int dbyte_offs, int dbit_offs )
 {
+	if( sbit_offs > 7 )
+	{
+		sbyte_offs += sbit_offs / 8;
+		sbit_offs %= 8;
+	}
+	if( dbit_offs > 7 )
+	{
+		dbyte_offs += dbit_offs / 8;
+		dbit_offs %= 8;
+	}
+
+	*(dest+dbyte_offs) &= ~(0x1 << dbit_offs);
+	*(dest+dbyte_offs) |= (((*(source+sbyte_offs) >> sbit_offs) & 1) << dbit_offs);
 
 }
+
+
+void process_sts_entries( ecnode *d )
+{
+	register int i;
+	domain_register *from, *to;
+	sts_entry **se;
+
+	epicsMutexMustLock( d->ddata.sts_lock );
+    for( se = &(d->ddata.sts); *se; se = &((*se)->next) )
+    {
+    	from = &((*se)->from);
+    	to = &((*se)->to);
+    	if( !(from->bitlen % 8) && !from->bit && from->bitlen &&
+    			!(to->bitlen % 8) && !to->bit && to->bitlen )
+    		memmove( d->ddata.dmem + to->offs, d->ddata.dmem + from->offs, from->bitlen / 8 );
+    	else
+    		for( i = 0; i < from->bitlen; i++ )
+    			copy_1bit( d->ddata.dmem, from->offs, from->bit, d->ddata.dmem, to->offs, to->bit );
+    }
+    epicsMutexUnlock( d->ddata.sts_lock );
+
+}
+
 
 inline void process_write_values( char *dmem, ecnode *d, char *wmask )
 {
@@ -261,7 +334,7 @@ int wt_counter[EC_MAX_DOMAINS] = { 0 },
 
 void ec_worker_thread( void *data )
 {
-	int received, delayctr, dnr;
+	int delayctr, dnr;
 	struct timespec rec = { .tv_sec = 0, .tv_nsec = 50000 };
 	ethcat *ec = (ethcat *)data;
 	ec_master_t *ecm;
@@ -307,6 +380,7 @@ void ec_worker_thread( void *data )
 		epicsMutexMustLock( ec->rw_lock );
 		memcpy( ec->d->ddata.rmem, ec->d->ddata.dmem, ec->d->ddata.dsize );
 		process_write_values( ec->d->ddata.dmem, ec->d, ec->w_mask );
+		process_sts_entries( ec->d );
 		epicsMutexUnlock( ec->rw_lock );
 
 		epicsEventSignal( ec->irq );

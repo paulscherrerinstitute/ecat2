@@ -112,7 +112,21 @@ ethcat *drvFindDomain( int dnr )
 
 int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int b_nr )
 {
-	ecnode *d = e->d;
+	ecnode *d;
+
+	if( !e )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat/e NULL - init failed\n", __func__ );
+		return FAIL;
+	}
+
+	if( !e->d )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat domain NULL - domain init failed\n", __func__ );
+		return FAIL;
+	}
+
+	d = e->d;
 
 	FN_CALLED;
 	if( regnr < 0 || regnr > d->ddata.num_of_regs )
@@ -139,9 +153,23 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 
 int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int s_nr, int sm_nr, int p_nr, int e_nr, int b_nr )
 {
-	ecnode *d = e->d, *pe;
+	ecnode *d, *pe;
 	int i;
 	FN_CALLED;
+
+	if( !e )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat/e NULL - init failed\n", __func__ );
+		return FAIL;
+	}
+
+	if( !e->d )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat domain NULL - domain init failed\n", __func__ );
+		return FAIL;
+	}
+
+	d = e->d;
 
 	pe = ecn_get_pdo_entry_nr( 0, s_nr, sm_nr, p_nr, e_nr );
 	if( !pe )
@@ -280,6 +308,8 @@ long drvethercatConfigure(
     else
     	m = ecroot->child;
 
+    configure_el6692_entries( m->mdata.master );
+
 
 
     // query master about the current config
@@ -323,6 +353,7 @@ long drvethercatConfigure(
 		return S_dev_noMemory;
 	}
 	(*ec)->d->nr = domain_nr;
+	(*ec)->d->ddata.sts_lock = epicsMutexMustCreate();
 	(*ec)->r_data = (*ec)->d->ddata.rmem;
 	(*ec)->w_data = (*ec)->d->ddata.wmem;
 
@@ -388,7 +419,7 @@ static const iocshArg * const drvethercatConfigureArgs[] = {
 };
 
 static const iocshFuncDef drvethercatConfigureDef =
-    { "drvethercatConfigure", 4, drvethercatConfigureArgs };
+    { "ecatConfigure", 4, drvethercatConfigureArgs };
 
 static void drvethercatConfigureFunc( const iocshArgBuf *args )
 {
@@ -405,7 +436,7 @@ static void drvethercatConfigureFunc( const iocshArgBuf *args )
 // Domain map
 //
 //----------------------
-static const iocshArg drvethercatDMapArg0 = { "domainnr", 		iocshArgInt };
+static const iocshArg drvethercatDMapArg0 = { "cmd", 		iocshArgString };
 static const iocshArg * const drvethercatDMapArgs[] = {
     &drvethercatDMapArg0,
 };
@@ -416,7 +447,7 @@ static const iocshFuncDef drvethercatDMapDef =
 static void drvethercatDMapFunc( const iocshArgBuf *args )
 {
     dmap(
-        args[0].ival
+        args[0].sval
     );
 }
 
@@ -424,7 +455,7 @@ static void drvethercatDMapFunc( const iocshArgBuf *args )
 
 //----------------------
 //
-// ecstat
+// stat
 //
 //----------------------
 static const iocshArg drvethercatstatArg0 = { "level", 		iocshArgInt };
@@ -446,6 +477,64 @@ static void drvethercatStatFunc( const iocshArgBuf *args )
 }
 
 
+//----------------------
+//
+// ConfigEL6692
+//
+//----------------------
+static const iocshArg drvethercatConfigEL6692Arg[] = {
+		{ "slave_pos",  	iocshArgInt },
+		{ "io",  			iocshArgString },
+		{ "bitlen", 		iocshArgInt }
+};
+static const iocshArg * const drvethercatConfigEL6692Args[] = {
+    &drvethercatConfigEL6692Arg[0],
+    &drvethercatConfigEL6692Arg[1],
+    &drvethercatConfigEL6692Arg[2],
+};
+#if 0
+static const iocshFuncDef drvethercatConfigEL6692Def =
+    { "ecatConfigEL6692", 3, drvethercatConfigEL6692Args };
+
+static void drvethercatConfigEL6692Func( const iocshArgBuf *args )
+{
+    ConfigEL6692(
+        args[0].ival,
+        args[1].sval,
+        args[2].ival
+    );
+}
+
+#endif
+
+
+//----------------------
+//
+// ConfigEL6692
+//
+//----------------------
+static const iocshArg drvethercatStSArg[] = {
+		{ "from",  	iocshArgString },
+		{ "to",  	iocshArgString },
+};
+static const iocshArg *const drvethercatStSArgs[] = {
+    &drvethercatStSArg[0],
+    &drvethercatStSArg[1],
+};
+
+static const iocshFuncDef drvethercatStSDef =
+    { "ecatsts", 2, drvethercatStSArgs };
+
+static void drvethercatStSFunc( const iocshArgBuf *args )
+{
+    sts(
+        args[0].sval,
+        args[1].sval
+    );
+}
+
+
+
 
 
 
@@ -461,6 +550,8 @@ static void drvethercat2_registrar()
     iocshRegister( &drvethercatConfigureDef, drvethercatConfigureFunc );
     iocshRegister( &drvethercatDMapDef, drvethercatDMapFunc );
     iocshRegister( &drvethercatstatDef, drvethercatStatFunc );
+// test    iocshRegister( &drvethercatConfigEL6692Def, drvethercatConfigEL6692Func );
+    iocshRegister( &drvethercatStSDef, drvethercatStSFunc );
 }
 
 epicsExportRegistrar( drvethercat2_registrar );

@@ -11,17 +11,6 @@
 /*                                        */
 /*----------------------------------------*/
 
-typedef struct {
-	int offs;
-	int bit;
-	int bitlen;
-
-	int bitspec;
-
-	int rw_dir;
-} domain_register;
-
-
 
 
 typedef struct {
