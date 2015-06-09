@@ -50,6 +50,7 @@
 #include <epicsThread.h>
 #include <epicsExit.h>
 #include <iocsh.h>
+#include <callback.h>
 
 #include <time.h>
 

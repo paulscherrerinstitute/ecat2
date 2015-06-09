@@ -27,12 +27,12 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 			dreginfo->pdo_entry->pdo_entry_t.index,
 			dreginfo->pdo_entry->pdo_entry_t.subindex
 			);
-	printf( "%4d.%d  ", dreginfo->byte, dreginfo->bit );
+	printf( "%4d.%d  ", byte, bit );
 
 
 	sprintf( sbuf, "%d bit%s ",
 			len,
-			dreginfo->pdo_entry->pdo_entry_t.bit_length == 1 ? " " : "s"
+			len == 1 ? " " : "s"
 			);
 	printf( "%10s", sbuf );
 
@@ -47,7 +47,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 
 	switch( len )
 	{
-		case 1:  sprintf( sbuf, "%d", val & (1 << bit) ? 1 : 0 ); break;
+		case 1:  sprintf( sbuf, "%d", val & 0x00000001 ); break;
 		case 8:  sprintf( sbuf, "0x%02x", (unsigned char)val ); break;
 		case 16: sprintf( sbuf, "0x%04x", (unsigned short)val ); break;
 		case 32: sprintf( sbuf, "0x%08x", (unsigned int)val ); break;
@@ -57,13 +57,11 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 			sprintf( sbuf, "0x%02x", (val & ((1 << len) - 1) << bit) >> bit );
 			break;
 	}
-
-
 	printf( "%-10s", sbuf );
 	if( !showpe )
 		return;
 
-	printf( " ---> " );
+	printf( " @ " );
 
 	printf( "s%d.sm%d.p%d.e%d ",
 						dreginfo->slave->nr,
@@ -122,7 +120,7 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 
 	switch( bitlen )
 	{
-		case 1:  sprintf( sbuf, "%d", val & (1 << bit) ? 1 : 0 ); break;
+		case 1:  sprintf( sbuf, "%d", val & 0x00000001 ); break;
 		case 8:  sprintf( sbuf, "0x%02x", (unsigned char)val ); break;
 		case 16: sprintf( sbuf, "0x%04x", (unsigned short)val ); break;
 		case 32: sprintf( sbuf, "0x%08x", (unsigned int)val ); break;
@@ -249,6 +247,7 @@ int ect_print_d_entry_values_rec( int dnr )
 
 	return OK;
 }
+
 
 
 static int ect_print_d_entry_value_sts( ethcat *e, domain_reg_info *dreginfo )
@@ -889,7 +888,7 @@ long sts( char *from, char *to )
 
 getout:
     printf( "----------------------------------------------------------------------------------\n" );
-    printf( "Usage: ecatStS from to\n\n");
+    printf( "Usage: ecatsts from to\n\n");
     printf( " Argument        Desc\n");
     printf( " from            pdo entry (eg s0.sm0.p0.e0[.b0]) or domain register (eg [d0.]r0)\n" );
     printf( " to              pdo entry (eg s0.sm0.p0.e0[.b0]) or domain register (eg [d0.]r0)\n" );

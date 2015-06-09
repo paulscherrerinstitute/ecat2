@@ -51,6 +51,10 @@ void process_hooks( initHookState state )
 					return;
 				workthreadsrunning = 1;
 
+				// unfortunately, this does not help,
+				// it only delays the inevitable callback buffer overrun
+				//callbackSetQueueSize( 1000000 );
+
 				// start domain worker threads
 				for( ec = &ecatList; *ec; ec = &(*ec)->next )
 				{

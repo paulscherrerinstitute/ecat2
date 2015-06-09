@@ -306,7 +306,8 @@ void process_sts_entries( ecnode *d )
     		memmove( d->ddata.dmem + to->offs, d->ddata.dmem + from->offs, from->bitlen / 8 );
     	else
     		for( i = 0; i < from->bitlen; i++ )
-    			copy_1bit( d->ddata.dmem, from->offs, from->bit, d->ddata.dmem, to->offs, to->bit );
+    			copy_1bit( d->ddata.dmem, from->offs, from->bitspec > -1 ? from->bitspec : from->bit,
+    						d->ddata.dmem, to->offs, to->bitspec > -1 ? to->bitspec : to->bit );
     }
     epicsMutexUnlock( d->ddata.sts_lock );
 
