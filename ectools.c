@@ -458,7 +458,8 @@ typedef struct _el6692 {
 
 el6692 *el6692s = NULL;
 
-
+// currently not included by default,
+// since they have to be defined on both sides of EL6692
 ec_pdo_entry_info_t el6692_pdo_default_entries[] = {
     {0x10f4, 0x01, 2}, /* Sync Mode */
     {0x1800, 0x09, 1}, /* TxPDO-Toggle */
@@ -479,7 +480,7 @@ ec_sync_info_t el6692_syncs[] = {
     { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
     { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
     { 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, // --> RxPDO
-    { 3, EC_DIR_INPUT, 2, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
+    { 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
     { 0xff }
 };
 
@@ -552,8 +553,119 @@ void configure_el6692_entries(  ec_master_t *master )
 
 }
 
+int slave_is_6692( int slave_pos )
+{
+	el6692 **mod;
 
-static el6692 *add_new_6692( slave_pos )
+    for( mod = &el6692s; *mod; mod = &((*mod)->next) )
+    	if( (*mod)->slave_pos == slave_pos )
+    		return slave_pos;
+
+    return -1;
+}
+
+el6692 *get_6692_at_pos( int slave_pos )
+{
+	el6692 **mod;
+
+    for( mod = &el6692s; *mod; mod = &((*mod)->next) )
+    	if( (*mod)->slave_pos == slave_pos )
+    		return *mod;
+
+    return NULL;
+}
+
+
+int get_no_pdos_6692( int sm_num )
+{
+	// sm 0 and 1
+	if( sm_num < 2 )
+		return 0;
+	// sm 2
+	if( sm_num == 2 )
+		return 1;
+
+	return 1; // sm3
+
+}
+
+int get_pdo_info_6692( ec_master_t *ecm, int i, int j, int k, ec_pdo_info_t *pdo_t )
+{
+	el6692 *mod = get_6692_at_pos( i );
+	if( !mod )
+	{
+		printf( "Cannot find EL6692 module at position %d!\n", i );
+		return 0;
+	}
+
+	el6692_pdos[0].entries = mod->el6692_rx_entries;
+	el6692_pdos[0].n_entries = mod->no_el6692_rx_entries;
+
+	el6692_pdos[1].entries = mod->el6692_tx_entries;
+	el6692_pdos[1].n_entries = mod->no_el6692_tx_entries;
+
+	switch( j )
+	{
+		case 0:
+		case 1:
+				memset( pdo_t, 0, sizeof(ec_pdo_info_t) );
+				break;
+		case 2: if( el6692_pdos[0].entries )
+					memcpy( pdo_t, &el6692_pdos[0], sizeof(ec_pdo_info_t) );
+				break;
+
+		case 3:	if( el6692_pdos[1+k].entries )
+					memcpy( pdo_t, &el6692_pdos[1+k], sizeof(ec_pdo_info_t) );
+				break;
+
+		default:
+				printf( "%s: SM %d > 3 !\n", __func__, i );
+				return 0;
+	}
+
+	return 1;
+}
+
+
+int get_pdo_entry_info_6692( ec_master_t *ecm, int i, int j, int k, int l, ec_pdo_entry_info_t *pdo_entry_t )
+{
+	el6692 *mod = get_6692_at_pos( i );
+	if( !mod )
+	{
+		printf( "Cannot find EL6692 module at position %d!\n", i );
+		return 0;
+	}
+
+	el6692_pdos[0].entries = mod->el6692_rx_entries;
+	el6692_pdos[0].n_entries = mod->no_el6692_rx_entries;
+
+	el6692_pdos[1].entries = mod->el6692_tx_entries;
+	el6692_pdos[1].n_entries = mod->no_el6692_tx_entries;
+
+	switch( j )
+	{
+		case 0:
+		case 1:
+				break;
+		case 2: if( el6692_pdos[0].entries )
+					memcpy( pdo_entry_t, &el6692_pdos[0].entries[l], sizeof(ec_pdo_entry_info_t) );
+				break;
+
+		case 3:if( el6692_pdos[1+k].entries )
+					memcpy( pdo_entry_t, &el6692_pdos[1+k].entries[l], sizeof(ec_pdo_entry_info_t) );
+				break;
+
+		default:
+				printf( "%s: SM %d > 3 !\n", __func__, i );
+				return 0;
+	}
+
+	return 1;
+
+}
+
+
+static el6692 *add_new_6692( int slave_pos )
 {
 	el6692 **mod;
 
@@ -571,7 +683,7 @@ static el6692 *add_new_6692( slave_pos )
 
 long ConfigEL6692( int slave_pos, char *io, int bitlen )
 {
-	int i, len, iodir = 0;
+	int i, len, iodir = 0, tt;
 	ec_pdo_entry_info_t *pei, *newp, **entries;
 	int index, subindex, *no_entries;
 	el6692 *module;
@@ -591,7 +703,7 @@ long ConfigEL6692( int slave_pos, char *io, int bitlen )
 
 
 
-    for( i = 0; i < strlen(io); i++ )
+    for( i = 0; i < len; i++ )
     	io[i] = tolower(io[i]);
 
     module = add_new_6692( slave_pos );
@@ -619,7 +731,28 @@ long ConfigEL6692( int slave_pos, char *io, int bitlen )
     else
     	goto getout;
 
-    subindex = *no_entries;
+/*
+	for( i = 0; i < module->no_el6692_tx_entries; i++ )
+	{
+		printf( "Tx %d. 0x%04x:%02x (%d bits)\n",
+				i,
+				module->el6692_tx_entries[i].index,
+				module->el6692_tx_entries[i].subindex,
+				module->el6692_tx_entries[i].bit_length
+		);
+	}
+	for( i = 0; i < module->no_el6692_rx_entries; i++ )
+	{
+		printf( "Rx %d. 0x%04x:%02x (%d bits)\n",
+				i,
+				module->el6692_rx_entries[i].index,
+				module->el6692_rx_entries[i].subindex,
+				module->el6692_rx_entries[i].bit_length
+		);
+	}
+*/
+
+	subindex = *no_entries;
 
     if( !*no_entries )
     {
@@ -628,11 +761,12 @@ long ConfigEL6692( int slave_pos, char *io, int bitlen )
     }
     else
     {
-    	newp = *entries + *no_entries;
-    	pei = realloc( (*entries), ++(*no_entries) );
+    	pei = realloc( (*entries), (++(*no_entries))*sizeof(ec_pdo_entry_info_t) );
+    	newp = pei + (*no_entries) - 1;
 
     }
-	if( !pei )
+
+	if( !pei || !newp )
 	{
 		errlogSevPrintf( errlogFatal, "%s: allocating memory failed\n", __func__ );
 		return ERR_OUT_OF_MEMORY;
@@ -643,6 +777,7 @@ long ConfigEL6692( int slave_pos, char *io, int bitlen )
 	newp->index = index;
    	newp->subindex = subindex;
    	newp->bit_length = bitlen;
+
 
    	printf( "%s: config EL6692 as slave %d, prepared entry %d, direction %s: 0x%04x:%02x %d bit%s\n", __func__,
 				slave_pos,
@@ -664,9 +799,9 @@ getout:
     printf( " io              in or out\n");
     printf( " bitlen          Bitlen of the entry to create (> 0)\n");
     printf( " \nExamples:\n");
-    printf( " ecatEL6692 in 8\n");
-    printf( " ecatEL6692 in 1\n");
-    printf( " ecatEL6692 out 32\n");
+    printf( " ecatcfgEL6692 1 in 8\n");
+    printf( " ecatcfgEL6692 1 in 1\n");
+    printf( " ecatcfgEL6692 1 out 32\n");
     printf( "----------------------------------------------------------------------------------\n" );
 
     printf( "\n***** ecat2 driver called with stat %d %s %d\n", slave_pos, io, bitlen );
@@ -894,10 +1029,10 @@ getout:
     printf( " to              pdo entry (eg s0.sm0.p0.e0[.b0]) or domain register (eg [d0.]r0)\n" );
     printf( " \nNote: if domain number is omitted, d0 will be assumed\n");
     printf( " \nExamples:\n");
-    printf( " ecatStS s3.sm2.p0.e1 s4.sm0.p1.e120\n" );
-    printf( " ecatStS s3.sm2.p0.e1.b6 s4.sm0.p1.e120.b3\n" );
-    printf( " ecatStS d0.r31 d0.r144\n");
-    printf( " ecatStS r12 r0\n");
+    printf( " ecatsts s3.sm2.p0.e1 s4.sm0.p1.e120\n" );
+    printf( " ecatsts s3.sm2.p0.e1.b6 s4.sm0.p1.e120.b3\n" );
+    printf( " ecatsts d0.r31 d0.r144\n");
+    printf( " ecatsts r12 r0\n");
     printf( "----------------------------------------------------------------------------------\n" );
 
     return 0;
@@ -908,6 +1043,71 @@ getout:
 
 
 
+
+
+
+
+
+//-------------------------------------------------------------------
+//
+// cfg slave
+//
+//-------------------------------------------------------------------
+
+/*
+ec_pdo_info_t el6692_pdos[] = {
+    { 0x1600, 0, NULL }, // RxPDO-Map
+    { 0x1a00, 0, NULL }, // TxPDO-Map
+    { 0x1a01, 6, el6692_pdo_default_entries + 0 },  TxPDO-Map External Sync Compact
+};
+
+ec_sync_info_t el6692_syncs[] = {
+    { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
+    { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
+    { 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, // --> RxPDO
+    { 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
+    { 0xff }
+};
+*/
+
+/*
+#define MAX_PDOS			32
+#define MAX_SYNC_MANAGERS	16
+
+ec_pdo_info_t *cfg_pdos;
+ec_sync_info_t *cfg_syncs;
+
+typedef struct _slavecfg {
+	struct _slavecfg *next;
+
+	int slave_pos;
+
+	ec_sync_info_t
+
+	ec_pdo_info_t cfg_pdos[MAX_PDOS];
+	ec_sync_info_t cfg_syncs[MAX_SYNC_MANAGERS+1];
+	ec_pdo_entry_info_t *el6692_rx_entries;
+	int no_el6692_rx_entries;
+
+	ec_pdo_entry_info_t *el6692_tx_entries;
+	int no_el6692_tx_entries;
+} el6692;
+
+el6692 *el6692s = NULL;
+{ 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
+{ 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
+{ 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, // --> RxPDO
+{ 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
+{ 0xff }
+*/
+
+long cfgslave( int slave_nr, int sm_nr, int pdo_addr )
+{
+
+
+
+	return 0;
+}
 
 
 

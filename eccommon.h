@@ -290,6 +290,7 @@ typedef enum {
 #define PPREFIX "===== ecat2: "
 #define EPT_MAX_TOKENS 16
 
+int www ( void );
 
 #endif
 

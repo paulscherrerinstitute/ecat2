@@ -329,8 +329,7 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 }
 
 
-
-
+/*
 #define CHECK_RECINIT                                                                                      \
 if( !priv )                                                                                                \
 {                                                                                                          \
@@ -350,6 +349,25 @@ if( status )                                                                    
 {                                                                                                                    \
     errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
     recGblSetSevr(record, READ_ALARM, INVALID_ALARM );                                                               \
+}                                                                                                                    \
+*/
+
+#define CHECK_RECINIT                                                                                      \
+if( !priv )                                                                                                \
+{                                                                                                          \
+    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (1)\n", __func__, record->name );    \
+    return -1;                                                                                             \
+}\
+if( !priv->e )                                                                                                \
+{                                                                                                          \
+    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2)\n", __func__, record->name );    \
+    return -1;                                                                                             \
+}
+
+#define CHECK_STATUS                                                                                                 \
+if( status )                                                                                                         \
+{                                                                                                                    \
+    errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
 }                                                                                                                    \
 
 

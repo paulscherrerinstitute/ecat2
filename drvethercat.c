@@ -3,7 +3,8 @@
 //-------------------------------------------------------------------
 
 
-#define ECAT_DNAME	"ecat_d%d"
+#define ECAT_TNAME_D	"ecat_dom"
+#define ECAT_TNAME_IRQ	"ecat_irq"
 
 int drvethercatDebug = 0;
 static ethcat *ecatList = NULL;
@@ -58,15 +59,16 @@ void process_hooks( initHookState state )
 				// start domain worker threads
 				for( ec = &ecatList; *ec; ec = &(*ec)->next )
 				{
-					(*ec)->dthread = epicsThreadMustCreate( ECAT_DNAME, 60, // epicsThreadPriorityLow,
+					(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 60, // epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
-					(*ec)->irqthread = epicsThreadMustCreate( ECAT_DNAME, epicsThreadPriorityLow,
+					(*ec)->irqthread = epicsThreadMustCreate( ECAT_TNAME_IRQ, epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_irq_thread, *ec );
+					printf( PPREFIX "worker and irq thread started\n" );
 				}
 				break;
 
 		default:
-					break;
+				break;
 	}
 
 
@@ -312,9 +314,9 @@ long drvethercatConfigure(
     else
     	m = ecroot->child;
 
+    printf( PPREFIX "Configuring EL6692 entries start...\n" );
     configure_el6692_entries( m->mdata.master );
-
-
+    printf( PPREFIX "Configuring EL6692 entries end.\n" );
 
     // query master about the current config
     if( !master_create_physical_config( m ) )
@@ -360,7 +362,6 @@ long drvethercatConfigure(
 	(*ec)->d->ddata.sts_lock = epicsMutexMustCreate();
 	(*ec)->r_data = (*ec)->d->ddata.rmem;
 	(*ec)->w_data = (*ec)->d->ddata.wmem;
-
     (*ec)->w_mask = calloc( 1, (*ec)->d->ddata.dsize );
 	if( !(*ec)->w_mask )
 	{
@@ -496,9 +497,9 @@ static const iocshArg * const drvethercatConfigEL6692Args[] = {
     &drvethercatConfigEL6692Arg[1],
     &drvethercatConfigEL6692Arg[2],
 };
-#if 0
+#if 1
 static const iocshFuncDef drvethercatConfigEL6692Def =
-    { "ecatConfigEL6692", 3, drvethercatConfigEL6692Args };
+    { "ecatcfgEL6692", 3, drvethercatConfigEL6692Args };
 
 static void drvethercatConfigEL6692Func( const iocshArgBuf *args )
 {
@@ -514,7 +515,7 @@ static void drvethercatConfigEL6692Func( const iocshArgBuf *args )
 
 //----------------------
 //
-// ConfigEL6692
+// slave-to-slave
 //
 //----------------------
 static const iocshArg drvethercatStSArg[] = {
@@ -538,6 +539,35 @@ static void drvethercatStSFunc( const iocshArgBuf *args )
 }
 
 
+//----------------------
+//
+// ecatcfgslave
+//
+//----------------------
+static const iocshArg drvethercatcfgslaveArg[] = {
+		{ "slave_nr",  			iocshArgInt },
+		{ "sync_manager_nr",  	iocshArgInt },
+		{ "pdo_addr",  			iocshArgInt },
+};
+static const iocshArg *const drvethercatcfgslaveArgs[] = {
+    &drvethercatcfgslaveArg[0],
+    &drvethercatcfgslaveArg[1],
+};
+
+static const iocshFuncDef drvethercatcfgslaveDef =
+    { "ecatcfgslave", 2, drvethercatcfgslaveArgs };
+
+static void drvethercatcfgslaveFunc( const iocshArgBuf *args )
+{
+    cfgslave(
+        args[0].ival,
+        args[1].ival,
+        args[2].ival
+    );
+}
+
+
+
 
 
 
@@ -554,7 +584,7 @@ static void drvethercat2_registrar()
     iocshRegister( &drvethercatConfigureDef, drvethercatConfigureFunc );
     iocshRegister( &drvethercatDMapDef, drvethercatDMapFunc );
     iocshRegister( &drvethercatstatDef, drvethercatStatFunc );
-// test    iocshRegister( &drvethercatConfigEL6692Def, drvethercatConfigEL6692Func );
+	iocshRegister( &drvethercatConfigEL6692Def, drvethercatConfigEL6692Func );
     iocshRegister( &drvethercatStSDef, drvethercatStSFunc );
 }
 

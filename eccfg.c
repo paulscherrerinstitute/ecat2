@@ -2,6 +2,23 @@
 #include "ec.h"
 
 
+int www ( void )
+{
+  int ch;
+  struct termios oldt, newt;
+
+  printf( "Press any key...\n" );
+  tcgetattr ( STDIN_FILENO, &oldt );
+  newt = oldt;
+  newt.c_lflag &= ~( ICANON | ECHO );
+  tcsetattr ( STDIN_FILENO, TCSANOW, &newt );
+  ch = getchar();
+  tcsetattr ( STDIN_FILENO, TCSANOW, &oldt );
+  printf( "Pressed, continuing\n" );
+
+  return ch;
+}
+
 ecnode *ecroot = NULL;
 //-------------------------------------------------------------------
 #define PRINT_PHYS_CONFIG 1
@@ -30,6 +47,7 @@ int master_create_physical_config( ecnode *m )
             perrret( "%s: cannot get slave %d info\n", __func__, i );
 
 		sync_count = slave->slave_t.sync_count;
+
 #if 1 //PRINT_PHYS_CONFIG
         pinfo( "   Slave %d: SMs %d, alias %d, vendor id 0x%08x, revision nr 0x%08x, product code 0x%08x, sernr 0x%08x\n",
                 i,
@@ -41,6 +59,79 @@ int master_create_physical_config( ecnode *m )
                 slave->slave_t.serial_number
              );
 #endif
+
+		if( slave_is_6692( i ) >= 0 )
+    	{
+    		// special case - EL6692
+			printf( PPREFIX "EL6692 at pos %d:\n", i );
+
+	        for( j = 0; j < sync_count; j++ )
+	        {
+	        	if( !(sm = ecn_add_child_type( slave, ECNT_SYNC )) )
+	        		return 0;
+	        	sm->nr = j;
+	        	if( ecrt_master_get_sync_manager( ecm, i, j, &sm->sync_t ) )
+	            	perrret( "%s: (EL6692) cannot get slave %d, sync mgr %d info\n", __func__, i, j );
+
+	        	pdo_count = get_no_pdos_6692( j );
+
+	        	for( k = 0; k < pdo_count; k++ )
+	            {
+	            	if( !(pdo = ecn_add_child_type( sm, ECNT_PDO )) )
+	            			return 0;
+	            	pdo->nr = k;
+
+	                if( !get_pdo_info_6692( ecm, i, j, k, &pdo->pdo_t ) )
+	                {
+	                	printf( "%s: (EL6692) cannot get slave %d, sync mgr %d, pdo %d info\n", __func__, i, j, k );
+	                	continue;
+	                }
+
+	                entry_count = pdo->pdo_t.n_entries;
+
+	#if PRINT_PHYS_CONFIG
+	                pinfo( "         PDO %d: Entries %d, index 0x%04x\n",
+	                        k,
+	                        entry_count,
+	                        pdo->pdo_t.index
+	                     );
+	#endif
+
+	                for( l = 0; l < entry_count; l++ )
+	                {
+	                    if( !get_pdo_entry_info_6692( ecm, i, j, k, l, &pdo_entry )  )
+	                    	perrret( "%s: (EL6692) cannot get slave %d, sync mgr %d, pdo %d, pdoe_entry %d info\n", __func__, i, j, k, l );
+
+	                    if( !pdo_entry.index )
+							continue;
+
+	                    if( !(pdoe = ecn_add_child_type( pdo, ECNT_PDO_ENTRY )) )
+	                    	return 0;;
+	                	pdoe->nr = l;
+	                	memcpy( &pdoe->pdo_entry_t, &pdo_entry, sizeof(ec_pdo_entry_info_t) );
+
+	#if PRINT_PHYS_CONFIG
+	                    pinfo( "            Entry %d: index 0x%04x, subindex %d, bit length %d\n",
+	                            l,
+	                            pdo_entry.index,
+	                            pdo_entry.subindex,
+	                            pdo_entry.bit_length
+	                         );
+	#endif
+	                }
+
+
+	            }
+
+
+
+
+	        }
+
+	        continue;
+    	}
+
+
 
         for( j = 0; j < sync_count; j++ )
         {
@@ -188,7 +279,7 @@ int domain_create_autoconfig( ecnode *d )
 
 
                 	dc = &d->ddata.regs[ix];
-					dc->alias 			= slave->slave_t.alias;
+					dc->alias 			= 0; //slave->slave_t.alias;
 					dc->position 		= slave->slave_t.position;
 					dc->vendor_id		= slave->slave_t.vendor_id;
 					dc->product_code 	= slave->slave_t.product_code;
@@ -229,7 +320,7 @@ int domain_create_autoconfig( ecnode *d )
 
 ecnode *add_domain( ecnode *m, int rate )
 {
-	int nr = ecn_get_first_free_child_nr_type( m, ECNT_DOMAIN );
+	int retv, nr = ecn_get_first_free_child_nr_type( m, ECNT_DOMAIN );
 	int size, nregs;
 	ecnode *d = ecn_add_child_type( m, ECNT_DOMAIN );
 	if( !d )
@@ -248,12 +339,13 @@ ecnode *add_domain( ecnode *m, int rate )
         return 0;
 	pinfo( "Domain %d: Autoconfig found %d entries\n", d->nr, nregs );
 
-#if 0
+#if 1
 int i;
 	for( i = 0; i < nregs; i++ )
 	{
-		printf( "%d.  pos %d, vendor 0x%x, pcode 0x%x, 0x%04x:%02x, blen=%d\n",
+		printf( "%d.  alias %d, pos %d, vendor 0x%x, pcode 0x%x, 0x%04x:%02x, blen=%d\n",
 				i,
+				d->ddata.regs[i].alias,
 				d->ddata.regs[i].position,
 				d->ddata.regs[i].vendor_id,
 				d->ddata.regs[i].product_code,
@@ -263,9 +355,9 @@ int i;
 				);
 	}
 #endif
-
-	if( ecrt_domain_reg_pdo_entry_list( d->domain_t, d->ddata.regs ))
-		perrret( "%s: Domain pdo entry list registration failed!\n", __func__ );
+	retv = ecrt_domain_reg_pdo_entry_list( d->domain_t, d->ddata.regs );
+	if( retv)
+		perrret( "%s: ecrt_domain_reg_pdo_entry_list failed!\n", __func__ );
 
 	printf( "------------ after reg list ---------------\n" );
 	size = ecrt_domain_size( d->domain_t );
@@ -305,7 +397,6 @@ int i;
 #endif
 
 #endif
-
 
 	if( !d->ddata.dmem )
 		perrret( "%s: cannot get or allocate domain memory\n", __func__ );
