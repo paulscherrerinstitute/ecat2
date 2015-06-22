@@ -250,6 +250,7 @@ long drvethercatConfigure(
 {
     ethcat **ec;
     ecnode *m;
+    EC_ERR retv;
 
 	FN_CALLED;
 
@@ -287,7 +288,7 @@ long drvethercatConfigure(
 		if( !ecroot )
 		{
 			errlogSevPrintf( errlogFatal, "%s: creating root node failed\n", __func__ );
-			return S_dev_noMemory;
+			return ERR_OUT_OF_MEMORY;
 		}
 
 		ecroot->nr = 0;
@@ -300,7 +301,7 @@ long drvethercatConfigure(
 		if( !m )
 		{
 			errlogSevPrintf( errlogFatal, "%s: creating master node failed\n", __func__ );
-			return S_dev_noMemory;
+			return ERR_OUT_OF_MEMORY;
 		}
 
 		m->nr = 0;
@@ -314,15 +315,31 @@ long drvethercatConfigure(
     else
     	m = ecroot->child;
 
+    //--------------------------
+    //
+    // slave config
+    //
+    //--------------------------
     printf( PPREFIX "Configuring EL6692 entries start...\n" );
     configure_el6692_entries( m->mdata.master );
     printf( PPREFIX "Configuring EL6692 entries end.\n" );
+
+
+    printf( PPREFIX "Configuring slave(s) start...\n" );
+    retv = execute_configuration_prg();
+	if( retv != ERR_NO_ERROR )
+	{
+		errlogSevPrintf( errlogFatal, "%s: executing slave configuration program failed (error %d)\n", __func__, retv );
+		return retv;
+	}
+    printf( PPREFIX "Configuring slave(s) end.\n" );
+
 
     // query master about the current config
     if( !master_create_physical_config( m ) )
     {
 		errlogSevPrintf( errlogFatal, "%s: creating master config failed\n", __func__ );
-		return S_dev_badRequest;
+		return ERR_BAD_REQUEST;
     }
 
 	//---------------------------------
@@ -333,7 +350,7 @@ long drvethercatConfigure(
     	if( (*ec)->dnr == domain_nr )
     	{
     		errlogSevPrintf( errlogFatal, "%s: EtherCAT domain %d has already been registered\n", __func__, domain_nr );
-    		return S_dev_identifyOverlap;
+    		return ERR_ALREADY_EXISTS;
     	}
 
 
@@ -341,7 +358,7 @@ long drvethercatConfigure(
 	if( *ec == NULL )
 	{
 		errlogSevPrintf( errlogFatal, "%s: Memory allocation failed.\n", __func__ );
-		return S_dev_noMemory;
+		return ERR_OUT_OF_MEMORY;
 	}
 
     (*ec)->next = NULL;
@@ -356,7 +373,7 @@ long drvethercatConfigure(
 	if( !((*ec)->d = add_domain( m, (*ec)->rate )) )
 	{
 		errlogSevPrintf( errlogFatal, "%s: Domain init and autoconfig failed.\n", __func__ );
-		return S_dev_noMemory;
+		return ERR_OUT_OF_MEMORY;
 	}
 	(*ec)->d->nr = domain_nr;
 	(*ec)->d->ddata.sts_lock = epicsMutexMustCreate();
@@ -424,7 +441,7 @@ static const iocshArg * const drvethercatConfigureArgs[] = {
 };
 
 static const iocshFuncDef drvethercatConfigureDef =
-    { "ecatConfigure", 4, drvethercatConfigureArgs };
+    { "ecat2configure", 4, drvethercatConfigureArgs };
 
 static void drvethercatConfigureFunc( const iocshArgBuf *args )
 {
@@ -499,7 +516,7 @@ static const iocshArg * const drvethercatConfigEL6692Args[] = {
 };
 #if 1
 static const iocshFuncDef drvethercatConfigEL6692Def =
-    { "ecatcfgEL6692", 3, drvethercatConfigEL6692Args };
+    { "ecat2cfgEL6692", 3, drvethercatConfigEL6692Args };
 
 static void drvethercatConfigEL6692Func( const iocshArgBuf *args )
 {
@@ -528,7 +545,7 @@ static const iocshArg *const drvethercatStSArgs[] = {
 };
 
 static const iocshFuncDef drvethercatStSDef =
-    { "ecatsts", 2, drvethercatStSArgs };
+    { "ecat2sts", 2, drvethercatStSArgs };
 
 static void drvethercatStSFunc( const iocshArgBuf *args )
 {
@@ -544,28 +561,43 @@ static void drvethercatStSFunc( const iocshArgBuf *args )
 // ecatcfgslave
 //
 //----------------------
+
+
 static const iocshArg drvethercatcfgslaveArg[] = {
-		{ "slave_nr",  			iocshArgInt },
-		{ "sync_manager_nr",  	iocshArgInt },
-		{ "pdo_addr",  			iocshArgInt },
+		{ "cmd",  				iocshArgString },
+		{ "s_nr",  				iocshArgInt },
+		{ "sm_nr",  			iocshArgInt },
+		{ "pdo_ix_dir",  		iocshArgInt },
+		{ "entry_ix_wd_mode",	iocshArgInt },
+		{ "entry_sub_ix",		iocshArgInt },
+		{ "entry_bitlen",		iocshArgInt },
+
 };
 static const iocshArg *const drvethercatcfgslaveArgs[] = {
     &drvethercatcfgslaveArg[0],
     &drvethercatcfgslaveArg[1],
+    &drvethercatcfgslaveArg[2],
+    &drvethercatcfgslaveArg[3],
+    &drvethercatcfgslaveArg[4],
+    &drvethercatcfgslaveArg[5],
+    &drvethercatcfgslaveArg[6],
 };
 
 static const iocshFuncDef drvethercatcfgslaveDef =
-    { "ecatcfgslave", 2, drvethercatcfgslaveArgs };
+    { "ecat2cfgslave", 7, drvethercatcfgslaveArgs };
 
 static void drvethercatcfgslaveFunc( const iocshArgBuf *args )
 {
     cfgslave(
-        args[0].ival,
+        args[0].sval,
         args[1].ival,
-        args[2].ival
+        args[2].ival,
+        args[3].ival,
+        args[4].ival,
+        args[5].ival,
+        args[6].ival
     );
 }
-
 
 
 
@@ -586,6 +618,7 @@ static void drvethercat2_registrar()
     iocshRegister( &drvethercatstatDef, drvethercatStatFunc );
 	iocshRegister( &drvethercatConfigEL6692Def, drvethercatConfigEL6692Func );
     iocshRegister( &drvethercatStSDef, drvethercatStSFunc );
+    iocshRegister( &drvethercatcfgslaveDef, drvethercatcfgslaveFunc );
 }
 
 epicsExportRegistrar( drvethercat2_registrar );

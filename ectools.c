@@ -683,7 +683,7 @@ static el6692 *add_new_6692( int slave_pos )
 
 long ConfigEL6692( int slave_pos, char *io, int bitlen )
 {
-	int i, len, iodir = 0, tt;
+	int i, len, iodir = 0;
 	ec_pdo_entry_info_t *pei, *newp, **entries;
 	int index, subindex, *no_entries;
 	el6692 *module;
@@ -730,27 +730,6 @@ long ConfigEL6692( int slave_pos, char *io, int bitlen )
     }
     else
     	goto getout;
-
-/*
-	for( i = 0; i < module->no_el6692_tx_entries; i++ )
-	{
-		printf( "Tx %d. 0x%04x:%02x (%d bits)\n",
-				i,
-				module->el6692_tx_entries[i].index,
-				module->el6692_tx_entries[i].subindex,
-				module->el6692_tx_entries[i].bit_length
-		);
-	}
-	for( i = 0; i < module->no_el6692_rx_entries; i++ )
-	{
-		printf( "Rx %d. 0x%04x:%02x (%d bits)\n",
-				i,
-				module->el6692_rx_entries[i].index,
-				module->el6692_rx_entries[i].subindex,
-				module->el6692_rx_entries[i].bit_length
-		);
-	}
-*/
 
 	subindex = *no_entries;
 
@@ -1054,60 +1033,318 @@ getout:
 //
 //-------------------------------------------------------------------
 
-/*
-ec_pdo_info_t el6692_pdos[] = {
-    { 0x1600, 0, NULL }, // RxPDO-Map
-    { 0x1a00, 0, NULL }, // TxPDO-Map
-    { 0x1a01, 6, el6692_pdo_default_entries + 0 },  TxPDO-Map External Sync Compact
-};
 
-ec_sync_info_t el6692_syncs[] = {
-    { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
-    { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
-    { 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, // --> RxPDO
-    { 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
-    { 0xff }
-};
-*/
-
-/*
 #define MAX_PDOS			32
 #define MAX_SYNC_MANAGERS	16
+typedef enum {
+	CSC_SM = 0,
+	CSC_SM_CLEAR_PDOS,
+	CSC_SM_ADD_PDO,
+	CSC_PDO_CLEAR_ENTRIES,
+	CSC_PDO_ADD_ENTRY,
 
-ec_pdo_info_t *cfg_pdos;
-ec_sync_info_t *cfg_syncs;
+	CSC_ERROR = 0xffff
+} cfgslave_cmd;
 
-typedef struct _slavecfg {
-	struct _slavecfg *next;
+static char *csc_cmd_str[] = {
+	"sm",
+	"sm_clear_pdos",
+	"sm_add_pdo",
+	"pdo_clear_entries",
+	"pdo_add_entry",
 
-	int slave_pos;
+	NULL
+};
 
-	ec_sync_info_t
-
-	ec_pdo_info_t cfg_pdos[MAX_PDOS];
-	ec_sync_info_t cfg_syncs[MAX_SYNC_MANAGERS+1];
-	ec_pdo_entry_info_t *el6692_rx_entries;
-	int no_el6692_rx_entries;
-
-	ec_pdo_entry_info_t *el6692_tx_entries;
-	int no_el6692_tx_entries;
-} el6692;
-
-el6692 *el6692s = NULL;
-{ 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
-{ 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
-{ 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, // --> RxPDO
-{ 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
-{ 0xff }
-*/
-
-long cfgslave( int slave_nr, int sm_nr, int pdo_addr )
+char *strtolower( char *s )
 {
+	int i = 0, len;
+	if( !s )
+		return s;
+	len = strlen( s );
+	if( !len )
+		return s;
 
+	do {
+		s[i] = tolower( s[i] );
+	} while( s[++i] );
 
-
-	return 0;
+	return s;
 }
+
+
+
+typedef struct {
+	cfgslave_cmd cmd;
+	int args[6];
+} cfgslave_prgstep;
+
+static int cfg_prg_no_of_steps = 0;
+static cfgslave_prgstep *cfg_prg = NULL;
+#define EXTRA_DUPLICATE_CHECK 0
+
+EC_ERR execute_configuration_prg( void )
+{
+	int retv, ix = 0,
+			slave_nr, sm_nr, pdo_ix_dir,
+			entry_ix_wd_mode, entry_sub_ix, entry_bitlen;
+	ec_slave_config_t *sc;
+	ecnode *m = ecroot->child;
+	ec_slave_info_t slave_t;
+	ec_sync_info_t sync_t;
+#if EXTRA_DUPLICATE_CHECK
+	ec_pdo_info_t pdo_t;
+	ec_pdo_entry_info_t entry;
+	int i, j, found;
+#endif
+	cfgslave_prgstep *step = cfg_prg;
+	cfgslave_cmd cscmd;
+	char *cmd;
+
+	if( !cfg_prg )
+		return 1;
+
+	/*
+
+	ecatcfg sm                   slavenr   smnr     dir        wd_mode
+	ecatcfg sm_clear_pdos        slavenr   smnr
+	ecatcfg sm_add_pdo           slavenr   smnr     pdoindex
+	ecatcfg pdo_clear_entries    slavenr   smnr     pdoindex
+	ecatcfg pdo_add_entry        slavenr   smnr     pdoindex   entryindex    entrysubindex   entrybitlen
+
+	*/
+	printf( PPREFIX "Executing slave configuration program, %d step(s)\n", cfg_prg_no_of_steps );
+	do
+	{
+		printf( PPREFIX "Step %d from %d: ", ix, cfg_prg_no_of_steps-1 );
+		step = cfg_prg + ix;
+		cscmd             = step->cmd;
+		cmd = csc_cmd_str[(int)cscmd];
+		slave_nr          = step->args[0];
+		sm_nr             = step->args[1];
+		pdo_ix_dir        = step->args[2];
+		entry_ix_wd_mode  = step->args[3];
+		entry_sub_ix      = step->args[4];
+		entry_bitlen      = step->args[5];
+
+
+        if( ecrt_master_get_slave( m->mdata.master, slave_nr, &slave_t ) )
+		{
+			errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s', slave nr %d not found\n", __func__, cmd, slave_nr );
+			return ERR_BAD_ARGUMENT;
+		}
+
+		if (!(sc = ecrt_master_slave_config( m->mdata.master, 0, slave_nr, slave_t.vendor_id, slave_t.product_code )))
+		{
+			errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': failed to get slave configuration at position %d.\n", __func__, cmd, slave_nr );
+			return ERR_BAD_ARGUMENT;
+		}
+		if( ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sync_t ) )
+		{
+			errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': failed to get slave %d sync manager configuration at position %d.\n", __func__, cmd, slave_nr, sm_nr );
+			return ERR_BAD_ARGUMENT;
+		}
+
+		switch( cscmd )
+		{
+			case CSC_SM:
+						// ecatcfg sm                   slavenr   smnr     dir        wd_mode
+
+						if( pdo_ix_dir != EC_DIR_OUTPUT && pdo_ix_dir != EC_DIR_INPUT )
+						{
+							errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': slave %d, sm %d, direction %d is not valid (valid: %d (output) or %d (input))\n",
+																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir,
+																			EC_DIR_OUTPUT /* 1 */, EC_DIR_INPUT /* 2 */ );
+							return ERR_BAD_ARGUMENT;
+						}
+
+						if( entry_ix_wd_mode != EC_WD_DEFAULT &&
+								entry_ix_wd_mode != EC_WD_ENABLE &&
+								entry_ix_wd_mode != EC_WD_DISABLE )
+						{
+							errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': slave %d, sm %d, wd_mode %d is not valid (valid: %d (default), %d (enable) or %d (disable))\n",
+																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir,
+																			EC_WD_DEFAULT /* 0 */, EC_WD_ENABLE /* 1 */, EC_WD_DISABLE /* 2 */ );
+							return ERR_BAD_ARGUMENT;
+						}
+						if( (retv = ecrt_slave_config_sync_manager( sc, sm_nr, pdo_ix_dir, entry_ix_wd_mode )) )
+						{
+							errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': slave %d, sm %d, dir %d, wd_mode %d has failed (retv %d)\n",
+																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir, entry_ix_wd_mode, retv );
+							return ERR_OPERATION_FAILED;
+						}
+						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, dir %d, wd_mode %d has been executed.\n",
+													cmd, slave_nr, sm_nr, pdo_ix_dir, entry_ix_wd_mode );
+						break;
+
+			case CSC_SM_CLEAR_PDOS:
+						// ecatcfg sm_clear_pdos        slavenr   smnr
+						ecrt_slave_config_pdo_assign_clear( sc, sm_nr );
+
+						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d has been executed.\n",
+													cmd, slave_nr, sm_nr );
+						break;
+
+			case CSC_SM_ADD_PDO:
+						// ecatcfg sm_add_pdo           slavenr   smnr     pdoindex
+#if EXTRA_DUPLICATE_CHECK
+				ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sync_t );
+						found = 0;
+						for( i = 0; i < sync_t.n_pdos && !found; i++ )
+						{
+							ecrt_master_get_pdo( m->mdata.master, slave_nr, sm_nr, i, &pdo_t );
+							if( pdo_t.index == pdo_ix_dir )
+								found = 1;
+						}
+						if( found )
+						{
+							printf( "slave %d, sm %d, pdo 0x%04x already mapped\n",
+									slave_nr, sm_nr, pdo_ix_dir
+									);
+							break;
+						}
+#endif
+						if( (retv = ecrt_slave_config_pdo_assign_add( sc, sm_nr, pdo_ix_dir ) ))
+						{
+							errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x has failed (retv %d)\n",
+																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir, retv );
+							return ERR_OPERATION_FAILED;
+						}
+						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x has been executed.\n",
+													cmd, slave_nr, sm_nr, pdo_ix_dir );
+
+						break;
+
+			case CSC_PDO_CLEAR_ENTRIES:
+						// ecatcfg pdo_clear_entries    slavenr   smnr     pdoindex
+
+						ecrt_slave_config_pdo_mapping_clear( sc, pdo_ix_dir );
+						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x has been executed.\n",
+													cmd, slave_nr, sm_nr, pdo_ix_dir );
+
+						break;
+
+			case CSC_PDO_ADD_ENTRY:
+						// ecatcfg pdo_add_entry        slavenr   smnr     pdoindex   entryindex    entrysubindex   entrybitlen
+#if EXTRA_DUPLICATE_CHECK
+				 		ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sync_t );
+				 		found = 0;
+						for( i = 0; i < sync_t.n_pdos && !found; i++ )
+						{
+							ecrt_master_get_pdo( m->mdata.master, slave_nr, sm_nr, i, &pdo_t );
+							if( pdo_t.index == pdo_ix_dir )
+							{
+								for( j = 0; j < pdo_t.n_entries && !found; j++ )
+								{
+									ecrt_master_get_pdo_entry( m->mdata.master, slave_nr, sm_nr, i, j, &entry );
+									if( entry.index == entry_ix_wd_mode &&
+											entry.subindex == entry_sub_ix )
+										found = 1;
+								}
+							}
+						}
+						if( found )
+						{
+							printf( "slave %d, sm %d, pdo 0x%04x, entry 0x%04x:%02x already mapped\n",
+									slave_nr, sm_nr, pdo_ix_dir,
+									entry_ix_wd_mode, entry_sub_ix
+									);
+							break;
+						}
+#endif
+						if( (retv = ecrt_slave_config_pdo_mapping_add( sc, pdo_ix_dir, entry_ix_wd_mode, entry_sub_ix, entry_bitlen ) ))
+						{
+							errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x, 0x%04x:%02x (%d bit%s) has failed (retv %d)\n",
+																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir,
+																			entry_ix_wd_mode, entry_sub_ix, entry_bitlen,
+																			entry_bitlen == 1 ? "" : "s", retv
+																			);
+							return ERR_OPERATION_FAILED;
+						}
+						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x, 0x%04x:%02x (%d bit%s) has been executed.\n",
+													cmd, slave_nr, sm_nr, pdo_ix_dir,
+													entry_ix_wd_mode, entry_sub_ix, entry_bitlen,
+													entry_bitlen == 1 ? "" : "s"
+													);
+						break;
+
+			default:	// ...to satisfy gcc
+						break;
+		}
+	} while( ++ix < cfg_prg_no_of_steps );
+
+	cfg_prg_no_of_steps = 0;
+	free( cfg_prg );
+
+	return ERR_NO_ERROR;
+}
+
+
+
+long cfgslave( char *cmd, int slave_nr, int sm_nr, int pdo_ix_dir, int entry_ix_wd_mode, int entry_sub_ix, int entry_bitlen )
+{
+	int cmd_ix = 0;
+	cfgslave_cmd cscmd = CSC_ERROR;
+	cfgslave_prgstep *step;
+
+    if( !cmd )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
+		return ERR_BAD_ARGUMENT;
+	}
+
+    if( !strlen(cmd) )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
+		return ERR_BAD_ARGUMENT;
+	}
+
+    do
+	{
+		if( !strcmp( strtolower(cmd), csc_cmd_str[cmd_ix] ) )
+		{
+			cscmd = (cfgslave_cmd)cmd_ix;
+			break;
+		}
+	} while( csc_cmd_str[++cmd_ix] );
+
+	if( cscmd == CSC_ERROR )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cfgslave command '%s' is not valid\n", __func__, cmd );
+		return ERR_BAD_ARGUMENT;
+	}
+
+
+    if( !cfg_prg )
+    {
+		step = cfg_prg = calloc( 1, sizeof(cfgslave_prgstep) );
+		cfg_prg_no_of_steps++;
+    }
+    else
+    {
+    	cfg_prg = realloc( cfg_prg, (++cfg_prg_no_of_steps)*sizeof(cfgslave_prgstep) );
+    	step = cfg_prg + cfg_prg_no_of_steps - 1;
+    }
+
+	if( !step || !cfg_prg )
+	{
+		errlogSevPrintf( errlogFatal, "%s: out of memory\n", __func__ );
+		return ERR_OUT_OF_MEMORY;
+	}
+
+
+	step->cmd = cscmd;
+	step->args[0] = slave_nr;
+	step->args[1] = sm_nr;
+	step->args[2] = pdo_ix_dir;
+	step->args[3] = entry_ix_wd_mode;
+	step->args[4] = entry_sub_ix;
+	step->args[5] = entry_bitlen;
+
+	return ERR_NO_ERROR;
+}
+
+
 
 
 

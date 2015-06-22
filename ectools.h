@@ -15,7 +15,9 @@ long stat( int level, int dnr );
 
 long sts( char *from, char *to );
 
-long cfgslave( int slave_nr, int sm_nr, int pdo_addr );
+long cfgslave( char *cmd, int slave_nr, int sm_nr, int pdo_ix_dir, int entry_ix_wd_mode, int entry_sub_ix, int entry_bitlen );
+EC_ERR execute_configuration_prg( void );
+
 //---------------------------------
 
 #endif

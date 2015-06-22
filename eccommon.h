@@ -262,7 +262,8 @@ typedef struct _ecnode {
 //-----------------------------------------
 
 typedef enum {
-	ERR_NO_ERROR = 0,
+	ERR_ERROR = 0,
+	ERR_NO_ERROR = 1,
 
 	ERR_OUT_OF_MEMORY 		= 100,
 	ERR_BAD_ARGUMENT 		= 101,
@@ -270,6 +271,7 @@ typedef enum {
 	ERR_OPERATION_FAILED 	= 103,
 	ERR_DOES_NOT_EXIST		= 104,
 	ERR_ALREADY_EXISTS 		= 105,
+
 
 /*
 	ERR_ = 10,
