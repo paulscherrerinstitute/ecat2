@@ -488,7 +488,7 @@ static const iocshArg * const drvethercatstatArgs[] = {
 };
 
 static const iocshFuncDef drvethercatstatDef =
-    { "stat", 2, drvethercatstatArgs };
+    { "stat", 0, drvethercatstatArgs };
 
 static void drvethercatStatFunc( const iocshArgBuf *args )
 {
