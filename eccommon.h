@@ -288,12 +288,60 @@ typedef enum {
 
 } EC_ERR;
 
+typedef enum {
+	S_NUM = 0,
+	SM_NUM,
+	P_NUM,
+	E_NUM,
+	B_NUM,
+	L_NUM,
+	O_NUM,
+	D_NUM,
+	R_NUM
+} TOKNUM;
+
+
+typedef struct ecat {
+	struct ecat *next;
+
+
+	ecnode *m;
+	ecnode *d;
+	long rate;
+	double freq;
+
+	IOSCANPVT r_scan;
+	IOSCANPVT w_scan;
+
+	int dnr; // domain nr
+
+	char *mmap_fname;
+
+	char *r_data;
+	char *w_data;
+
+	char *w_mask;
+
+	epicsMutexId rw_lock;
+
+	int dsize;
+	epicsThreadId dthread; // domain worker thread
+
+	epicsEventId irq;
+	epicsThreadId irqthread; // domain irq thread
+
+
+
+	int test;
+
+} ethcat;
+
 
 #define PPREFIX "===== ecat2: "
 #define EPT_MAX_TOKENS 16
 
-int www ( void );
-
+int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg );
+int slave_has_static_config( int slave_nr );
 #endif
 
 

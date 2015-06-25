@@ -331,6 +331,16 @@ void ecn_delete_branch( ecnode *node )
 }
 
 
+void ecn_delete_children( ecnode *node )
+{
+	if( !node )
+		return;
+
+	while( node->child )
+		ecn_delete_branch( node->child );
+}
+
+
 
 
 

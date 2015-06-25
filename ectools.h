@@ -11,7 +11,7 @@ int get_pdo_info_6692( ec_master_t *ecm, int i, int j, int k, ec_pdo_info_t *pdo
 int get_pdo_entry_info_6692( ec_master_t *ecm, int i, int j, int k, int l, ec_pdo_entry_info_t *pdo_entry_t );
 
 long dmap( char *cmd );
-long stat( int level, int dnr );
+long stat( int dnr );
 
 long sts( char *from, char *to );
 

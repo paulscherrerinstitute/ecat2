@@ -194,13 +194,113 @@ int dev_parse_expression( char *token )
 }
 
 
+
+int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg )
+{
+	char iotext[128], *tail, *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " ._\t";
+	int i, ntokens, retv = NOTOK, num, token_num[EPT_MAX_TOKENS];
+
+	FN_CALLED;
+	strcpy( iotext, s );
+
+	if( !(ntokens = dev_tokenize( iotext, delims, tokens )) )
+	{
+		errlogSevPrintf( errlogFatal, "%s: INP/OUT string invalid\n", __func__ );
+		return S_dev_badArgument;
+	}
+
+	// Possible INP/OUT links:
+	//
+	// dDaa.Rbb[.Bcc]              : domain register nn, optional bit cc
+	// Saa.SMbb.Pcc.Edd            : pdo entry a.b.c.d
+	// Saa.SMbb.Pcc.Edd.Bee        : pdo entry a.b.c.d, optional bit ee
+	// Saa.SMbb.Pcc.Edd.Lnn        : pdo entry a.b.c.d, optional string len nn
+	// Saa.SMbb.Pcc.Edd.Oee[.Lnn]  : pdo entry a.b.c.d, optional rel. offset ee, optional string len nn
+	//
+	for( i = 0; i < EPT_MAX_TOKENS; i++ )
+		token_num[i] = -1;
+	for( i = 0; i < ntokens; i++ )
+	{
+		if( !tokens[i] )
+			continue;
+
+		if( isdigit(tokens[i][1]) )
+			num = (int)strtol( tokens[i]+1, &tail, 10 );
+		else if( strlen(tokens[i]) > 3 && tokens[i][1] == '(' && tokens[i][strlen(tokens[i])-1] == ')')
+			num = dev_parse_expression( tokens[i] );
+		else
+			num = -1;
+
+		switch( toupper(tokens[i][0]) )
+		{
+			case 'D':	token_num[D_NUM] = num; break;
+			case 'R':	token_num[R_NUM] = num; break;
+			case 'S':	if( toupper(tokens[i][1]) == 'M' )
+							token_num[SM_NUM] = (int)strtol( tokens[i]+2, &tail, 10 );
+						else
+							token_num[S_NUM] = num; break;
+						break;
+			case 'P':	token_num[P_NUM] = num; break;
+			case 'E':	token_num[E_NUM] = num; break;
+			case 'B':	token_num[B_NUM] = num; break;
+			case 'L':   token_num[L_NUM] = num; break;
+			case 'O':   token_num[O_NUM] = num; break;
+
+		}
+
+
+	}
+
+
+	if( token_num[D_NUM] < 0 )
+		token_num[D_NUM] = 0;
+
+    *e = ethercatOpen( token_num[D_NUM] );
+    if( *e == NULL )
+    {
+        errlogSevPrintf( errlogFatal, "%s: cannot open domain %d\n", __func__, token_num[D_NUM] );
+        return ERR_BAD_ARGUMENT;
+    }
+
+	// check to see what kind of INP/OUT info was discovered
+    if( token_num[R_NUM] >= 0 )
+    {
+    	if( drvGetRegisterDesc( *e, dreg, *dreg_nr = token_num[R_NUM], pe, token_num) != OK )
+    	{
+    		errlogSevPrintf( errlogFatal, "%s: INP/OUT string error (%s), domain %d, register number %d not found\n",
+    												__func__, iotext, token_num[D_NUM], token_num[R_NUM] );
+    		return ERR_BAD_ARGUMENT;
+    	}
+
+    	retv = OK;
+    }
+    else if( token_num[S_NUM] >= 0 && token_num[SM_NUM] >= 0 && token_num[P_NUM] >= 0 && token_num[E_NUM] >=0 )
+    {
+    	if( drvGetEntryDesc( *e, dreg, dreg_nr, pe, token_num ) != OK )
+    	{
+
+			errlogSevPrintf( errlogFatal, "%s: INP/OUT string error (%s) in domain %d\n", __func__, iotext, token_num[D_NUM] );
+			return ERR_BAD_ARGUMENT;
+	    }
+    	retv = OK;
+    }
+    else
+	{
+		errlogSevPrintf( errlogFatal, "%s: INP/OUT string error (%s), domain %d, entry link not valid or incomplete\n",
+												__func__, iotext, token_num[D_NUM] );
+		return ERR_BAD_ARGUMENT;
+	}
+
+    return retv;
+}
+
+
 int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE rectype, DBLINK *reclink )
 {
-	char *iotext, *tail;
-	char *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " ._\t";
-	int i, ntokens, ix = 0, len, retv = NOTOK, num, s_num, sm_num, p_num, e_num, b_num, d_num, r_num;
 	FN_CALLED;
+	int dreg_nr, ix;
 
+	FN_CALLED;
 	dev_get_record_type( record, &ix );
 
 	if( !record || !reclink || rectype == REC_ERROR )
@@ -215,121 +315,17 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 		return S_dev_badArgument;
 	}
 
-	if( !(len = strlen(reclink->text)) )
+	if( !strlen(reclink->text) )
 	{
 		errlogSevPrintf( errlogFatal, "%s: INP/OUT string empty\n", __func__ );
 		return S_dev_badArgument;
 	}
 
-	if( !(iotext = calloc(sizeof(char), len)) )
-    {
-        errlogSevPrintf( errlogFatal, "%s: %s %s: out of memory\n", __func__, rectypes[ix].recname, record->name );
-		return S_dev_noMemory;
-    }
-	strcpy( iotext, reclink->text );
 
-#if 0
-	if( dev_trim_whitespaces( iotext, len, reclink->text ) == NOTOK )
-    {
-		free( iotext );
-        errlogSevPrintf( errlogFatal, "%s: %s %s: INP/OUT string error (%s)\n", __func__, rectypes[ix].recname, record->name, reclink->text );
-		return S_dev_badArgument;
-    }
-#endif
-
-	if( !(ntokens = dev_tokenize( iotext, delims, tokens )) )
-	{
-		errlogSevPrintf( errlogFatal, "%s: INP/OUT string invalid\n", __func__ );
-		return S_dev_badArgument;
-	}
-
-	// Possible INP/OUT links:
-	//
-	// Daa.Rbb            : domain register nn
-	// Saa.SMbb.Pcc.Edd   : pdo entry a.b.c.d
-	//
-	s_num = sm_num = p_num = e_num = b_num = d_num = r_num = -1;
-	for( i = 0; i < ntokens; i++ )
-	{
-		if( !tokens[i] )
-			continue;
-
-		if( isdigit(tokens[i][1]) )
-			num = (int)strtol( tokens[i]+1, &tail, 10 );
-		else if( strlen(tokens[i]) > 3 && tokens[i][1] == '(' && tokens[i][strlen(tokens[i])-1] == ')')
-		{
-			num = dev_parse_expression( tokens[i] );
-//			printf( "parsed %s as %d\n", tokens[i], num );
-		}
-		else
-			num = -1;
-
-		switch( toupper(tokens[i][0]) )
-		{
-			case 'D':	d_num = num; break;
-			case 'R':	r_num = num; break;
-			case 'S':	if( toupper(tokens[i][1]) == 'M' )
-							sm_num = (int)strtol( tokens[i]+2, &tail, 10 );
-						else
-							s_num = num; break;
-						break;
-			case 'P':	p_num = num; break;
-			case 'E':	e_num = num; break;
-			case 'B':	b_num = num; break;
-
-		}
-
-
-	}
-
-	free( iotext );
-
-
-	if( d_num < 0 )
-		d_num = 0;
-
-    priv->e = ethercatOpen( d_num );
-    if( priv->e == NULL )
-    {
-        errlogSevPrintf( errlogFatal, "%s: cannot open domain %d for record %s (type %s)\n", __func__, d_num, record->name, rectypes[ix].recname );
-        return ERR_BAD_ARGUMENT;
-    }
-
-	// check to see what kind of INP/OUT info was discovered
-    if( r_num >= 0 )
-    {
-    	if( drvGetRegisterDesc( priv->e, &priv->dreg_info, priv->dreg_nr = r_num, &priv->pe, b_num) != OK )
-    	{
-    		errlogSevPrintf( errlogFatal, "%s: %s (type %s): INP/OUT string error (%s), domain %d register number %d not found\n",
-    												__func__, record->name, rectypes[ix].recname, reclink->text, d_num, r_num );
-    		return ERR_BAD_ARGUMENT;
-    	}
-
-    	retv = OK;
-    }
-    else if( s_num >=0 && sm_num >= 0 && p_num >= 0 && e_num >=0 )
-    {
-    	if( drvGetEntryDesc( priv->e, &priv->dreg_info, &priv->dreg_nr, &priv->pe, s_num, sm_num, p_num, e_num, b_num ) != OK )
-    	{
-
-			errlogSevPrintf( errlogFatal, "%s: %s (type %s): INP/OUT string error (%s) in domain %d\n",
-													__func__, record->name, rectypes[ix].recname, reclink->text, d_num );
-			return ERR_BAD_ARGUMENT;
-	    }
-    	retv = OK;
-    }
-    else
-	{
-		errlogSevPrintf( errlogFatal, "%s: %s (type %s): INP/OUT string error (%s), domain %d, entry link not valid or incomplete\n",
-												__func__, record->name, rectypes[ix].recname, reclink->text, d_num );
-		return ERR_BAD_ARGUMENT;
-	}
-
-	return retv;
+	return parse_str( reclink->text, &priv->e, &priv->pe, &dreg_nr, &priv->dreg_info );
 }
 
 
-/*
 #define CHECK_RECINIT                                                                                      \
 if( !priv )                                                                                                \
 {                                                                                                          \
@@ -350,26 +346,6 @@ if( status )                                                                    
     errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
     recGblSetSevr(record, READ_ALARM, INVALID_ALARM );                                                               \
 }                                                                                                                    \
-*/
-
-#define CHECK_RECINIT                                                                                      \
-if( !priv )                                                                                                \
-{                                                                                                          \
-    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (1)\n", __func__, record->name );    \
-    return -1;                                                                                             \
-}\
-if( !priv->e )                                                                                                \
-{                                                                                                          \
-    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2)\n", __func__, record->name );    \
-    return -1;                                                                                             \
-}
-
-#define CHECK_STATUS                                                                                                 \
-if( status )                                                                                                         \
-{                                                                                                                    \
-    errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
-}                                                                                                                    \
-
 
 
 //----------------------------------------------------------
@@ -429,10 +405,9 @@ long dev_rw_ao( aoRecord *record )
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
 	FN_CALLED;
 
-   	CHECK_RECINIT;
-
-    status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    							(epicsUInt32 *)&(record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
+  	CHECK_RECINIT;
+    status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
+    							(epicsUInt32 *)(&record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
     CHECK_STATUS;
 
     return status;
@@ -600,6 +575,52 @@ long dev_rw_longout( longoutRecord *record )
 
 //----------------------------------------------------------
 //
+// stringin
+//
+//----------------------------------------------------------
+
+long dev_rw_stringin( stringinRecord *record )
+{
+   	int status = 0;
+   	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
+
+   	CHECK_RECINIT;
+
+    status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
+    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
+    CHECK_STATUS;
+
+    return status;
+}
+
+
+
+//----------------------------------------------------------
+//
+// stringout
+//
+//----------------------------------------------------------
+
+long dev_rw_stringout( stringoutRecord *record )
+{
+   	int status = 0;
+   	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+	FN_CALLED;
+
+   	CHECK_RECINIT;
+
+    status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
+    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    CHECK_STATUS;
+
+    return status;
+}
+
+
+
+//----------------------------------------------------------
+//
 // INIT
 //
 //----------------------------------------------------------
@@ -607,6 +628,13 @@ long dev_rw_longout( longoutRecord *record )
 static void add_record( int ix, devethercat_private *priv, dbCommon *record )
 {
 	conn_rec **cr;
+	FN_CALLED;
+
+	if( priv->pe == NULL )
+	{
+		errlogSevPrintf( errlogFatal, "%s: Cannot add record, PDO entry undefined.\n", __func__ );
+		return;
+	}
     // is this rec already registered?
     for( cr = &priv->pe->cr; *cr; cr = &(*cr)->next )
     	if( (*cr)->rec == record )
@@ -705,6 +733,14 @@ long dev_init_record(
 						PARSE_IO_STR( longout, out );
 						break;
 
+    	case REC_STRINGIN:
+						PARSE_IO_STR( stringin, inp );
+						break;
+
+    	case REC_STRINGOUT:
+						PARSE_IO_STR( stringout, out );
+						break;
+
     	default:
 						errlogSevPrintf( errlogFatal, "%s: record %s currently not supported\n", __func__, record->name );
 						return ERR_BAD_ARGUMENT;
@@ -751,7 +787,8 @@ devsupport( mbbi );
 devsupport( mbbo );
 devsupport( longin );
 devsupport( longout );
-
+devsupport( stringin );
+devsupport( stringout );
 
 
 

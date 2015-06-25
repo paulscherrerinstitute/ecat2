@@ -218,6 +218,60 @@ int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitle
 }
 
 
+int drvGetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval )
+{
+	char *rw = e->r_data;
+	int slen = bitlen / 8;
+
+	FN_CALLED3;
+	if( !e || !val )
+		return ERR_OPERATION_FAILED;
+
+	if( !e->r_data || !e->w_data )
+		return ERR_OPERATION_FAILED;
+
+	if( slen <= 0 || slen > 40 )
+		return ERR_OPERATION_FAILED;
+
+
+	epicsMutexMustLock( e->rw_lock );
+
+	memcpy( oval, val, 40 );
+	memcpy( val, rw + offs, slen );
+	if( slen < 40 )
+		*(val + slen) = 0;
+
+	epicsMutexUnlock( e->rw_lock );
+
+
+    return 0;
+}
+
+int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval )
+{
+	int retv = 0,
+		slen = bitlen / 8;
+
+	FN_CALLED;
+
+	if( !e || !val )
+		return ERR_OPERATION_FAILED;
+
+	if( !e->w_data )
+		return ERR_OPERATION_FAILED;
+
+	if( slen <= 0 || slen > 40 )
+		return ERR_OPERATION_FAILED;
+
+	epicsMutexMustLock( e->rw_lock );
+
+	memcpy( e->w_data + offs, val, slen );
+	memset( e->w_mask + offs, 0xff, slen );
+
+	epicsMutexUnlock( e->rw_lock );
+
+    return retv;
+}
 
 int ec_domain_received( ecnode *d )
 {
@@ -296,18 +350,30 @@ void process_sts_entries( ecnode *d )
 	domain_register *from, *to;
 	sts_entry **se;
 
+	static int cccc = 0;
+
 	epicsMutexMustLock( d->ddata.sts_lock );
     for( se = &(d->ddata.sts); *se; se = &((*se)->next) )
     {
     	from = &((*se)->from);
     	to = &((*se)->to);
-    	if( !(from->bitlen % 8) && !from->bit && from->bitlen &&
-    			!(to->bitlen % 8) && !to->bit && to->bitlen )
+
+    	if( !(from->bitlen % 8) && !from->bit && (from->bitlen/8 > 0) &&
+    			!(to->bitlen % 8) && !to->bit && (to->bitlen/8 > 0) &&
+    			from->bitspec < 0 && to->bitspec < 0 )
     		memmove( d->ddata.dmem + to->offs, d->ddata.dmem + from->offs, from->bitlen / 8 );
+
     	else
-    		for( i = 0; i < from->bitlen; i++ )
-    			copy_1bit( d->ddata.dmem, from->offs, from->bitspec > -1 ? from->bitspec : from->bit,
-    						d->ddata.dmem, to->offs, to->bitspec > -1 ? to->bitspec : to->bit );
+    	{
+
+    		if( from->bitspec > -1 || to->bitspec > -1 )
+				copy_1bit( d->ddata.dmem, from->offs, from->bitspec > -1 ? from->bitspec : (from->bitlen == 1 ? from->bit : 0),
+							d->ddata.dmem, to->offs, to->bitspec > -1 ? to->bitspec : (to->bitlen == 1 ? to->bit : 0) );
+    		else
+				for( i = 0; i < from->bitlen; i++ )
+					copy_1bit( d->ddata.dmem, from->offs, from->bit,
+								d->ddata.dmem, to->offs, to->bit );
+    	}
     }
     epicsMutexUnlock( d->ddata.sts_lock );
 

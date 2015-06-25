@@ -52,7 +52,7 @@ void process_hooks( initHookState state )
 					return;
 				workthreadsrunning = 1;
 
-				// unfortunately, this does not help,
+				// unfortunately, this below does not help,
 				// it only delays the inevitable callback buffer overrun
 				//callbackSetQueueSize( 1000000 );
 
@@ -63,7 +63,7 @@ void process_hooks( initHookState state )
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
 					(*ec)->irqthread = epicsThreadMustCreate( ECAT_TNAME_IRQ, epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_irq_thread, *ec );
-					printf( PPREFIX "worker and irq thread started\n" );
+					printf( PPREFIX "worker and irq threads started\n" );
 				}
 				break;
 
@@ -116,7 +116,7 @@ ethcat *drvFindDomain( int dnr )
 	return NULL;
 }
 
-int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int b_nr )
+int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int *token_num )
 {
 	ecnode *d;
 
@@ -141,10 +141,10 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 		return FAIL;
 	}
 
-	dreg->offs = d->ddata.reginfos[regnr].byte;
+	dreg->offs = d->ddata.reginfos[regnr].byte + (token_num[O_NUM] >= 0 ? token_num[O_NUM] : 0);
 	dreg->bit = d->ddata.reginfos[regnr].bit;
-	dreg->bitlen = d->ddata.reginfos[regnr].bit_length;
-	dreg->bitspec = b_nr;
+	dreg->bitlen = token_num[L_NUM] >= 0 ? token_num[L_NUM]*8 : d->ddata.reginfos[regnr].bit_length;
+	dreg->bitspec = token_num[B_NUM];
 
 	*pentry = d->ddata.reginfos[regnr].pdo_entry;
 	if( !*pentry )
@@ -157,7 +157,7 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 }
 
 
-int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int s_nr, int sm_nr, int p_nr, int e_nr, int b_nr )
+int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num )
 {
 	ecnode *d, *pe;
 	int i;
@@ -177,24 +177,26 @@ int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pe
 
 	d = e->d;
 
-	pe = ecn_get_pdo_entry_nr( 0, s_nr, sm_nr, p_nr, e_nr );
+
+	pe = ecn_get_pdo_entry_nr( 0, token_num[S_NUM], token_num[SM_NUM], token_num[P_NUM], token_num[E_NUM] );
 	if( !pe )
 	{
-		errlogSevPrintf( errlogFatal, "%s: PDO entry s%d.sm%d.p%d.e%d not found\n", __func__, s_nr, sm_nr, p_nr, e_nr );
+		errlogSevPrintf( errlogFatal, "%s: PDO entry s%d.sm%d.p%d.e%d not found\n", __func__,
+				token_num[S_NUM], token_num[SM_NUM], token_num[P_NUM], token_num[E_NUM] );
 		return FAIL;
 	}
 
 	if( !pe->domain_entry )
 	{
 		errlogSevPrintf( errlogFatal, "%s: PDO entry s%d.sm%d.p%d.e%d not registered in any domain\n",
-													__func__, s_nr, sm_nr, p_nr, e_nr );
+													__func__, token_num[S_NUM], token_num[SM_NUM], token_num[P_NUM], token_num[E_NUM] );
 		return FAIL;
 	}
 
 	if( pe->domain_entry->de_domain->nr != d->nr )
 	{
 		errlogSevPrintf( errlogFatal, "%s: PDO entry s%d.sm%d.p%d.e%d registered in other domain (%d)\n",
-													__func__, s_nr, sm_nr, p_nr, e_nr, pe->domain_entry->de_domain->nr );
+						__func__, token_num[S_NUM], token_num[SM_NUM], token_num[P_NUM], token_num[E_NUM], pe->domain_entry->de_domain->nr );
 		return FAIL;
 	}
 
@@ -203,15 +205,15 @@ int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pe
 		if( d->ddata.reginfos[i].pdo_entry == pe )
 		{
 			*dreg_nr = i;
-			dreg->offs = d->ddata.reginfos[i].byte;
+			dreg->offs = d->ddata.reginfos[i].byte + (token_num[O_NUM] >= 0 ? token_num[O_NUM] : 0);
 			dreg->bit = d->ddata.reginfos[i].bit;
-			dreg->bitlen = d->ddata.reginfos[i].bit_length;
-			dreg->bitspec = b_nr;
+			dreg->bitlen = token_num[L_NUM] >= 0 ? token_num[L_NUM]*8 : d->ddata.reginfos[i].bit_length;
+			dreg->bitspec = token_num[B_NUM];
 			return OK;
 		}
 
 	errlogSevPrintf( errlogFatal, "%s: Internal error - PDO entry s%d.sm%d.p%d.e%d registered in domain %d, but not in reg list\n",
-												__func__, s_nr, sm_nr, p_nr, e_nr, pe->domain_entry->de_domain->nr );
+												__func__, token_num[S_NUM], token_num[SM_NUM], token_num[P_NUM], token_num[E_NUM], pe->domain_entry->de_domain->nr );
 
 	return FAIL;
 }
@@ -325,6 +327,13 @@ long drvethercatConfigure(
     printf( PPREFIX "Configuring EL6692 entries end.\n" );
 
 
+    // query master about the current config
+    if( !master_create_physical_config( m ) )
+    {
+		errlogSevPrintf( errlogFatal, "%s: creating master config failed\n", __func__ );
+		return ERR_BAD_REQUEST;
+    }
+
     printf( PPREFIX "Configuring slave(s) start...\n" );
     retv = execute_configuration_prg();
 	if( retv != ERR_NO_ERROR )
@@ -334,13 +343,6 @@ long drvethercatConfigure(
 	}
     printf( PPREFIX "Configuring slave(s) end.\n" );
 
-
-    // query master about the current config
-    if( !master_create_physical_config( m ) )
-    {
-		errlogSevPrintf( errlogFatal, "%s: creating master config failed\n", __func__ );
-		return ERR_BAD_REQUEST;
-    }
 
 	//---------------------------------
     // create and init domain
@@ -480,21 +482,18 @@ static void drvethercatDMapFunc( const iocshArgBuf *args )
 // stat
 //
 //----------------------
-static const iocshArg drvethercatstatArg0 = { "level", 		iocshArgInt };
-static const iocshArg drvethercatstatArg1 = { "dnr", 		iocshArgInt };
+static const iocshArg drvethercatstatArg0 = { "dnr", 		iocshArgInt };
 static const iocshArg * const drvethercatstatArgs[] = {
-    &drvethercatstatArg0,
-    &drvethercatstatArg1,
+    &drvethercatstatArg0
 };
 
 static const iocshFuncDef drvethercatstatDef =
-    { "stat", 0, drvethercatstatArgs };
+    { "stat", 1, drvethercatstatArgs };
 
 static void drvethercatStatFunc( const iocshArgBuf *args )
 {
     stat(
-        args[0].ival,
-        args[1].ival
+        args[0].ival
     );
 }
 

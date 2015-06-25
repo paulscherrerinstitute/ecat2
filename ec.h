@@ -42,6 +42,8 @@
 #include <mbboRecord.h>
 #include <longinRecord.h>
 #include <longoutRecord.h>
+#include <stringinRecord.h>
+#include <stringoutRecord.h>
 #include <waveformRecord.h>
 #include <initHooks.h>
 #define HAVE_VME
@@ -50,6 +52,7 @@
 #include <epicsExit.h>
 #include <iocsh.h>
 #include <callback.h>
+#include <recGbl.h>
 
 #include <time.h>
 

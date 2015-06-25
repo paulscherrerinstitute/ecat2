@@ -63,7 +63,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 
 	printf( " @ " );
 
-	printf( "s%d.sm%d.p%d.e%d ",
+	printf( "s%d.sm%d.p%d.e%d",
 						dreginfo->slave->nr,
 						dreginfo->sync->nr,
 						dreginfo->pdo->nr,
@@ -100,7 +100,7 @@ static int ect_print_d_entry_values( int dnr )
 #define PRINT_RECVAL  1
 
 #if PRINT_RECVAL
-static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bitlen, int bitspec, int nobt, int shift, int mask )
+static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bitlen, int bitspec, int nobt, int shift, int mask, int sio )
 {
 	epicsUInt32 val;
 	char sbuf[128] = { 0 };
@@ -120,7 +120,7 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 
 	switch( bitlen )
 	{
-		case 1:  sprintf( sbuf, "%d", val & 0x00000001 ); break;
+		case 1:  sprintf( sbuf, "%d", (bitspec > -1 ? val >> bitspec : val) & 0x00000001 ); break;
 		case 8:  sprintf( sbuf, "0x%02x", (unsigned char)val ); break;
 		case 16: sprintf( sbuf, "0x%04x", (unsigned short)val ); break;
 		case 32: sprintf( sbuf, "0x%08x", (unsigned int)val ); break;
@@ -137,7 +137,7 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 {
 	conn_rec **cr = &dreginfo->pdo_entry->cr;
-	int morethan1 = 0;
+	int morethan1 = 0, sio = 0;
 
 	if( *cr )
 		if( (*cr)->next )
@@ -156,16 +156,20 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 		{
 			case REC_AI:
 			case REC_BI:
-			case REC_LONGIN:
 			case REC_MBBI:
+			case REC_LONGIN:
+			case REC_STRINGIN:
 							printf( " ---> " );
 							break;
 			case REC_AO:
 			case REC_BO:
 			case REC_MBBO:
 			case REC_LONGOUT:
-			default:
+			case REC_STRINGOUT:
 							printf( " <--- " );
+							break;
+			default:
+							printf( " --- " );
 							break;
 		}
 		if( (*cr)->dreg_info->bitspec > -1 )
@@ -202,6 +206,12 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 
 				case REC_LONGOUT:
 								break;
+
+				case REC_STRINGIN:
+								break;
+
+				case REC_STRINGOUT:
+								break;
 				default:
 								break;
 			}
@@ -213,8 +223,10 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 				);
 
 #if PRINT_RECVAL
+		if( (*cr)->rectype == REC_STRINGIN || (*cr)->rectype == REC_STRINGOUT )
+			sio = 1;
 		ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs, (*cr)->dreg_info->bit, (*cr)->dreg_info->bitlen,
-						(*cr)->dreg_info->bitspec, (*cr)->dreg_info->nobt, (*cr)->dreg_info->shft, (*cr)->dreg_info->mask );
+							(*cr)->dreg_info->bitspec, (*cr)->dreg_info->nobt, (*cr)->dreg_info->shft, (*cr)->dreg_info->mask, sio );
 #endif
 
 		if( (*cr)->next )
@@ -249,6 +261,31 @@ int ect_print_d_entry_values_rec( int dnr )
 }
 
 
+static void ect_print_val_sts( ethcat *e, ecnode *d, domain_register *ft )
+{
+	epicsUInt32 val;
+	char sbuf[128] = { 0 };
+
+	int bitlen = ft->bitlen;
+
+	drvGetValue( e, ft->offs, ft->bit, &val, ft->bitlen, ft->bitspec, 0 );
+
+	if( ft->bitspec > -1 )
+		bitlen = 1;
+
+	switch( bitlen )
+	{
+		case 1:  sprintf( sbuf, "%d", val & 0x00000001 ); break;
+		case 8:  sprintf( sbuf, "0x%02x", (unsigned char)val ); break;
+		case 16: sprintf( sbuf, "0x%04x", (unsigned short)val ); break;
+		case 32: sprintf( sbuf, "0x%08x", (unsigned int)val ); break;
+		default:
+			sprintf( sbuf, "!0x%02x", (val & ((1 << ft->bitlen) - 1) << ft->bit) >> ft->bit );
+			break;
+	}
+	printf( " = %s", sbuf );
+}
+
 
 static int ect_print_d_entry_value_sts( ethcat *e, domain_reg_info *dreginfo )
 {
@@ -272,9 +309,14 @@ static int ect_print_d_entry_value_sts( ethcat *e, domain_reg_info *dreginfo )
 			if( cnt > 1 )
 				printf( space );
 			if( (*se)->from.bitspec > -1 )
-				printf( ".b%d ", (*se)->from.bitspec );
+				printf( ".b%d", (*se)->from.bitspec );
+
+			ect_print_val_sts( e, e->d, &(*se)->from );
 			printf( " ---> " );
 			print_pdo_entry( (*se)->pdo_entry_to, (*se)->to.bitspec );
+
+			ect_print_val_sts( e, e->d, &(*se)->to );
+
 			if( cnt > 1 )
 				printf( "\n" );
 		}
@@ -283,9 +325,15 @@ static int ect_print_d_entry_value_sts( ethcat *e, domain_reg_info *dreginfo )
 			if( cnt > 1 )
 				printf( space );
 			if( (*se)->to.bitspec > -1 )
-				printf( ".b%d ", (*se)->to.bitspec );
+				printf( ".b%d", (*se)->to.bitspec );
+
+			ect_print_val_sts( e, e->d, &(*se)->to );
 			printf( " <--- " );
 			print_pdo_entry( (*se)->pdo_entry_from, (*se)->from.bitspec );
+
+
+			ect_print_val_sts( e, e->d, &(*se)->from );
+
 			if( cnt > 1 )
 				printf( "\n" );
 		}
@@ -297,9 +345,10 @@ static int ect_print_d_entry_value_sts( ethcat *e, domain_reg_info *dreginfo )
 }
 
 
+
 int ect_print_d_entry_values_sts( int dnr )
 {
-	int i;
+	int i, retv;
 	ecnode *d = ecn_get_domain_nr( 0, dnr );
 	ethcat *e = drvFindDomain( dnr );
 
@@ -312,7 +361,8 @@ int ect_print_d_entry_values_sts( int dnr )
 	for( i = 0; i < d->ddata.num_of_regs; i++ )
 	{
 		ect_print_d_entry_value( e, dnr, &d->ddata.reginfos[i], 1 );
-		if( !ect_print_d_entry_value_sts( e, &d->ddata.reginfos[i] ) )
+		retv = ect_print_d_entry_value_sts( e, &d->ddata.reginfos[i] );
+		if( !retv )
 			printf( "\n" );
 	}
 
@@ -348,7 +398,7 @@ long dmap( char *cmd )
 //
 //-------------------------------------------------------------------
 
-int ect_print_stats( int level, int dnr )
+int ect_print_stats( int dnr )
 {
 	int i;
 	ecnode *d = ecn_get_domain_nr( 0, dnr );
@@ -411,27 +461,25 @@ int ect_print_stats( int level, int dnr )
 }
 
 
-long stat( int level, int dnr )
+long stat( int dnr )
 {
-    if( level < 0 || dnr < 0 )
+    if( dnr < 0 )
     {
         printf( "----------------------------------------------------------------------------------\n" );
-        printf( "Usage: stat [level]\n\n");
+        printf( "Usage: stat [domain_nr]\n\n");
         printf( " Argument        Desc\n");
-        printf( " level           Level of info\n");
         printf( " domain_nr       Number of the corresponding EtherCAT domain\n");
         printf( " \nExamples:\n");
         printf( " stat\n");
-        printf( " stat 0 0\n");
-        printf( " stat 2 0\n");
+        printf( " stat 0\n");
         printf( "----------------------------------------------------------------------------------\n" );
 
-        printf( "\n***** ecat2 driver called with stat %d %d\n", level, dnr );
+        printf( "\n***** ecat2 driver called with stat %d\n", dnr );
         return 0;
     }
 
 
-    return ect_print_stats( level, dnr );
+    return ect_print_stats( dnr );
 }
 
 
@@ -841,102 +889,6 @@ static sts_entry *add_new_sts_entry( ecnode *d, ecnode *pe_from, ecnode *pe_to, 
 }
 
 
-static int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg )
-{
-	char *text, *tail, *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " ._\t";
-	int i, ntokens, retv = NOTOK, num, s_num, sm_num, p_num, e_num, b_num, d_num, r_num;
-
-	FN_CALLED;
-
-	if( !(text = calloc(sizeof(char), strlen(s) )) )
-    {
-        errlogSevPrintf( errlogFatal, "%s: out of memory\n", __func__ );
-		return ERR_OUT_OF_MEMORY;
-    }
-	strcpy( text, s );
-
-
-	if( !(ntokens = dev_tokenize( text, delims, tokens )) )
-	{
-		errlogSevPrintf( errlogFatal, "%s: input string '%s' invalid\n", __func__, s );
-		return ERR_BAD_ARGUMENT;
-	}
-
-	// Possible INP/OUT links:
-	//
-	// Daa.Rbb            		: domain register nn
-	// Saa.SMbb.Pcc.Edd[.Bee]   : pdo entry a.b.c.d
-	//
-	s_num = sm_num = p_num = e_num = b_num = d_num = r_num = -1;
-	for( i = 0; i < ntokens; i++ )
-	{
-		if( !tokens[i] )
-			continue;
-
-		if( isdigit(tokens[i][1]) )
-			num = (int)strtol( tokens[i]+1, &tail, 10 );
-		else if( strlen(tokens[i]) > 3 && tokens[i][1] == '(' && tokens[i][strlen(tokens[i])-1] == ')')
-			num = dev_parse_expression( tokens[i] );
-		else
-			num = -1;
-
-		switch( toupper(tokens[i][0]) )
-		{
-			case 'D':	d_num = num; break;
-			case 'R':	r_num = num; break;
-			case 'S':	if( toupper(tokens[i][1]) == 'M' )
-							sm_num = (int)strtol( tokens[i]+2, &tail, 10 );
-						else
-							s_num = num; break;
-						break;
-			case 'P':	p_num = num; break;
-			case 'E':	e_num = num; break;
-			case 'B':	b_num = num; break;
-
-		}
-	}
-
-	if( d_num < 0 )
-		d_num = 0;
-
-    *e = ethercatOpen( d_num );
-    if( *e == NULL )
-    {
-        errlogSevPrintf( errlogFatal, "%s: cannot open domain %d\n", __func__, d_num );
-        return ERR_BAD_ARGUMENT;
-    }
-
-	// check to see what kind of link was discovered
-    if( r_num >= 0 )
-    {
-    	if( drvGetRegisterDesc( *e, dreg, *dreg_nr = r_num, pe, b_num) != OK )
-    	{
-    		errlogSevPrintf( errlogFatal, "%s: input string error (%s), domain %d register number %d not found\n",
-    												__func__, s, d_num, r_num );
-    		return ERR_BAD_ARGUMENT;
-    	}
-
-    	retv = OK;
-    }
-    else if( s_num >=0 && sm_num >= 0 && p_num >= 0 && e_num >=0 )
-    {
-    	if( drvGetEntryDesc( *e, dreg, dreg_nr, pe, s_num, sm_num, p_num, e_num, b_num ) != OK )
-    	{
-
-			errlogSevPrintf( errlogFatal, "%s: input string error (%s) in domain %d\n", __func__, s, d_num );
-			return ERR_BAD_ARGUMENT;
-	    }
-    	retv = OK;
-    }
-    else
-	{
-		errlogSevPrintf( errlogFatal, "%s: input string error (%s), domain %d, entry link not valid or incomplete\n",
-												__func__, s, d_num );
-		return ERR_BAD_ARGUMENT;
-	}
-
-    return retv;
-}
 
 void print_pdo_entry( ecnode *pe, int bitspec )
 {
@@ -965,7 +917,7 @@ void print_pdo_entry( ecnode *pe, int bitspec )
 
 long sts( char *from, char *to )
 {
-	int len_from, len_to, dreg_nr_from, dreg_nr_to;
+	int len_from, len_to, dreg_nr_from, dreg_nr_to, bitlen;
 	ethcat *e_from, *e_to;
 	ecnode *pe_from, *pe_to;
 	domain_register dreg_from, dreg_to;
@@ -994,8 +946,12 @@ long sts( char *from, char *to )
 	printf( " --> " );
 	print_pdo_entry( pe_to, dreg_to.bitspec );
 
-	if( dreg_from.bitlen > 0 )
-		printf( " (%d bit%s)", dreg_from.bitlen, dreg_from.bitlen == 1 ? "" : "s" );
+	if( dreg_from.bitspec > -1 || dreg_to.bitspec > -1 )
+		bitlen = 1;
+	else
+		bitlen = dreg_from.bitlen;
+	if( bitlen > 0 )
+		printf( " (%d bit%s)", bitlen, bitlen == 1 ? "" : "s" );
 
 	printf( "\n" );
    	return 0;
@@ -1083,6 +1039,185 @@ static int cfg_prg_no_of_steps = 0;
 static cfgslave_prgstep *cfg_prg = NULL;
 #define EXTRA_DUPLICATE_CHECK 0
 
+
+
+int slave_has_static_config( int slave_nr )
+{
+	int i;
+	for( i = 0; i < cfg_prg_no_of_steps; i++ )
+		if( cfg_prg[i].args[0] == slave_nr )
+			return 1;
+	return 0;
+}
+
+
+
+
+#define CFG2
+//#define CFG2_UPDATE
+
+
+#ifdef CFG2_UPDATE
+static void cfg_update_info( ecnode *node )
+{
+	int i;
+	cfgslave_prgstep *step;
+
+	if( !node )
+		return;
+	if( node->child )
+		cfg_update_info( node->child );
+
+	while( node->next )
+		cfg_update_info( node = node->next );
+
+	switch( node->type )
+	{
+		case ECNT_SLAVE:
+							ecrt_master_get_slave( node->parent, node->nr, &node->slave_t )
+							break;
+		case ECNT_SYNC:
+							ecrt_master_get_sync_manager( node->parent->parent, node->parent->nr, node->nr, &node->sync_t )
+							break;
+		case ECNT_PDO:
+							if( !ecrt_master_get_pdo( node->parent->parent->parent, node->parent->parent->nr, node->parent->nr, node->nr, &node->pdo_t ) )
+								break;
+
+							for( i = node->pdo_t->n_entries = 0; i < cfg_prg_no_of_steps; i++ )
+								if( step[i]->cmd == CSC_PDO_ADD_ENTRY &&
+										step[i]->args[0] == node->parent->parent->nr && // slave
+										step[i]->args[1] == node->parent->nr && // sm
+										step[i]->args[2] == node->pdo_t->index // pdo index
+										)
+								node->pdo_t->n_entries++;
+							break;
+		default:
+			break;
+	}
+
+}
+#endif
+
+#ifdef CFG2
+
+
+ecnode *ecn_get_child_pdo_t_index_type( ecnode *parent, int pdoindex, ECN_TYPE type )
+{
+	ecnode *n;
+	if( !parent )
+		return NULL;
+	n = parent->child;
+	if( !n )
+		return NULL;
+
+	do {
+		if( n->type == type )
+			if( n->pdo_t.index == pdoindex )
+				return n;
+	}
+	while( (n = n->next) );
+
+	return NULL;
+}
+
+ecnode *ecn_get_child_ix_subix_type( ecnode *parent, int index, int subindex, ECN_TYPE type )
+{
+	ecnode *n;
+	if( !parent )
+		return NULL;
+	n = parent->child;
+	if( !n )
+		return NULL;
+
+	do {
+		if( n->type == type )
+			if( n->pdo_entry_t.index == index &&
+					n->pdo_entry_t.subindex == subindex )
+				return n;
+	}
+	while( (n = n->next) );
+
+	return NULL;
+}
+
+static ecnode *cfg_add_slave( ecnode *m, int slave_nr, ec_slave_info_t *slave_t )
+{
+	ecnode *slave;
+	if( (slave = ecn_get_child_nr_type( m, slave_nr, ECNT_SLAVE )) )
+		return slave;
+
+	if( !(slave = ecn_add_child_type( m, ECNT_SLAVE )) )
+        perrret( "%s: adding slave %d failed\n", __func__, slave_nr );
+	slave->nr = slave_nr;
+
+	memcpy( &slave->slave_t, slave_t, sizeof(ec_slave_info_t) );
+
+
+	return slave;
+}
+
+static ecnode *cfg_add_sm( ecnode *slave, int sm_nr, int dir, int wd_mode )
+{
+	ecnode *sm;
+	if( (sm = ecn_get_child_nr_type( slave, sm_nr, ECNT_SYNC )) )
+		return sm;
+
+	if( !(sm = ecn_add_child_type( slave, ECNT_SYNC )) )
+        perrret( "%s: adding slave %d, sync %d failed\n", __func__, slave->nr, sm_nr );
+	sm->nr = sm_nr;
+
+	sm->sync_t.index = sm_nr;
+	sm->sync_t.dir = dir;
+	sm->sync_t.watchdog_mode = wd_mode;
+	sm->sync_t.n_pdos = 0;
+
+	slave->slave_t.sync_count++;
+	return sm;
+}
+
+static ecnode *cfg_add_pdo( ecnode *sm, int pdoindex )
+{
+	ecnode *pdo = NULL;
+
+	if( (pdo = ecn_get_child_pdo_t_index_type( sm, pdoindex, ECNT_PDO )) )
+		return pdo;
+
+	if( !(pdo = ecn_add_child_type( sm, ECNT_PDO )) )
+        perrret( "%s: adding slave %d, sync %d, pdo index 0x%04x failed\n", __func__,
+        					sm->parent->nr, sm->nr, pdoindex );
+
+	pdo->nr = sm->sync_t.n_pdos++;
+	pdo->pdo_t.index = pdoindex;
+	pdo->pdo_t.n_entries = 0;
+
+	return pdo;
+}
+
+static ecnode *cfg_add_pdo_entry( ecnode *pdo, int index, int subindex, int bitlen )
+{
+	ecnode *pdo_entry = NULL;
+
+	if( (pdo_entry = ecn_get_child_ix_subix_type( pdo, index, subindex, ECNT_PDO_ENTRY )) )
+		return pdo_entry;
+
+	if( !(pdo_entry = ecn_add_child_type( pdo, ECNT_PDO_ENTRY )) )
+        perrret( "%s: adding slave %d, sync %d, pdo index 0x%04x, entry 0x%04x:%02x failed\n", __func__,
+        				pdo->parent->parent->nr, pdo->parent->nr, pdo->pdo_t.index, index, subindex );
+
+	pdo_entry->nr = pdo->pdo_t.n_entries++;
+	pdo_entry->pdo_entry_t.index = index;
+	pdo_entry->pdo_entry_t.subindex = subindex;
+	pdo_entry->pdo_entry_t.bit_length = bitlen;
+
+	return pdo_entry;
+}
+
+#endif
+
+
+
+#define PRINT_CFG_INFO 0
+
 EC_ERR execute_configuration_prg( void )
 {
 	int retv, ix = 0,
@@ -1090,6 +1225,7 @@ EC_ERR execute_configuration_prg( void )
 			entry_ix_wd_mode, entry_sub_ix, entry_bitlen;
 	ec_slave_config_t *sc;
 	ecnode *m = ecroot->child;
+	//ecnode *slave, *sm, *pdo, *pdoe;
 	ec_slave_info_t slave_t;
 	ec_sync_info_t sync_t;
 #if EXTRA_DUPLICATE_CHECK
@@ -1100,17 +1236,20 @@ EC_ERR execute_configuration_prg( void )
 	cfgslave_prgstep *step = cfg_prg;
 	cfgslave_cmd cscmd;
 	char *cmd;
+#ifdef CFG2
+    ecnode *slave, *sm, *pdo;
+#endif
 
 	if( !cfg_prg )
 		return 1;
 
 	/*
 
-	ecatcfg sm                   slavenr   smnr     dir        wd_mode
-	ecatcfg sm_clear_pdos        slavenr   smnr
-	ecatcfg sm_add_pdo           slavenr   smnr     pdoindex
-	ecatcfg pdo_clear_entries    slavenr   smnr     pdoindex
-	ecatcfg pdo_add_entry        slavenr   smnr     pdoindex   entryindex    entrysubindex   entrybitlen
+	ecat2cfgslave sm                   slavenr   smnr     dir        wd_mode
+	ecat2cfgslave sm_clear_pdos        slavenr   smnr
+	ecat2cfgslave sm_add_pdo           slavenr   smnr     pdoindex
+	ecat2cfgslave pdo_clear_entries    slavenr   smnr     pdoindex
+	ecat2cfgslave pdo_add_entry        slavenr   smnr     pdoindex   entryindex    entrysubindex   entrybitlen
 
 	*/
 	printf( PPREFIX "Executing slave configuration program, %d step(s)\n", cfg_prg_no_of_steps );
@@ -1137,13 +1276,25 @@ EC_ERR execute_configuration_prg( void )
 		if (!(sc = ecrt_master_slave_config( m->mdata.master, 0, slave_nr, slave_t.vendor_id, slave_t.product_code )))
 		{
 			errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': failed to get slave configuration at position %d.\n", __func__, cmd, slave_nr );
-			return ERR_BAD_ARGUMENT;
+			return ERR_OPERATION_FAILED;
 		}
 		if( ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sync_t ) )
 		{
 			errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': failed to get slave %d sync manager configuration at position %d.\n", __func__, cmd, slave_nr, sm_nr );
-			return ERR_BAD_ARGUMENT;
+			return ERR_OPERATION_FAILED;
 		}
+#ifdef CFG2
+
+		slave = cfg_add_slave( m, slave_nr, &slave_t );
+
+		if( !slave )
+			return ERR_OPERATION_FAILED;
+
+		sm = cfg_add_sm( slave, sm_nr, pdo_ix_dir, entry_ix_wd_mode );
+
+		if( !sm )
+			return ERR_OPERATION_FAILED;
+#endif
 
 		switch( cscmd )
 		{
@@ -1173,16 +1324,32 @@ EC_ERR execute_configuration_prg( void )
 																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir, entry_ix_wd_mode, retv );
 							return ERR_OPERATION_FAILED;
 						}
+
+						// refresh sm info
+#ifdef CFG2
+			        	if( ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sm->sync_t ) )
+			            	perrret( "%s: (EL6692) cannot get slave %d, sync mgr %d info\n", __func__, slave_nr, sm_nr );
+#endif
+			        	sm->sync_t.dir = pdo_ix_dir;
+			        	sm->sync_t.watchdog_mode = entry_ix_wd_mode;
+
+#if PRINT_CFG_INFO
 						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, dir %d, wd_mode %d has been executed.\n",
 													cmd, slave_nr, sm_nr, pdo_ix_dir, entry_ix_wd_mode );
+#endif
 						break;
 
 			case CSC_SM_CLEAR_PDOS:
 						// ecatcfg sm_clear_pdos        slavenr   smnr
 						ecrt_slave_config_pdo_assign_clear( sc, sm_nr );
 
+//						ecn_delete_children( sm );
+						sm->sync_t.n_pdos = 0;
+
+#if PRINT_CFG_INFO
 						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d has been executed.\n",
 													cmd, slave_nr, sm_nr );
+#endif
 						break;
 
 			case CSC_SM_ADD_PDO:
@@ -1210,18 +1377,28 @@ EC_ERR execute_configuration_prg( void )
 																			__func__, cmd, slave_nr, sm_nr, pdo_ix_dir, retv );
 							return ERR_OPERATION_FAILED;
 						}
+
+#ifdef CFG2
+						pdo = cfg_add_pdo( sm, pdo_ix_dir );
+#endif
+#if PRINT_CFG_INFO
 						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x has been executed.\n",
 													cmd, slave_nr, sm_nr, pdo_ix_dir );
-
+#endif
 						break;
 
 			case CSC_PDO_CLEAR_ENTRIES:
 						// ecatcfg pdo_clear_entries    slavenr   smnr     pdoindex
 
 						ecrt_slave_config_pdo_mapping_clear( sc, pdo_ix_dir );
+
+						pdo = ecn_get_child_pdo_t_index_type( sm, pdo_ix_dir, ECNT_PDO );
+						pdo->pdo_t.n_entries = 0;
+
+#if PRINT_CFG_INFO
 						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x has been executed.\n",
 													cmd, slave_nr, sm_nr, pdo_ix_dir );
-
+#endif
 						break;
 
 			case CSC_PDO_ADD_ENTRY:
@@ -1261,16 +1438,29 @@ EC_ERR execute_configuration_prg( void )
 																			);
 							return ERR_OPERATION_FAILED;
 						}
+
+#ifdef CFG2
+						pdo = ecn_get_child_pdo_t_index_type( sm, pdo_ix_dir, ECNT_PDO );
+						cfg_add_pdo_entry( pdo, entry_ix_wd_mode, entry_sub_ix, entry_bitlen );
+#endif
+
+#if PRINT_CFG_INFO
+
 						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x, 0x%04x:%02x (%d bit%s) has been executed.\n",
 													cmd, slave_nr, sm_nr, pdo_ix_dir,
 													entry_ix_wd_mode, entry_sub_ix, entry_bitlen,
 													entry_bitlen == 1 ? "" : "s"
-													);
+						);
+#endif
 						break;
 
 			default:	// ...to satisfy gcc
 						break;
 		}
+
+#ifdef CFG2_UPDATE
+		cfg_update_info( slave );
+#endif
 	} while( ++ix < cfg_prg_no_of_steps );
 
 	cfg_prg_no_of_steps = 0;

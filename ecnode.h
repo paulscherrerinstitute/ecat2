@@ -5,6 +5,7 @@ ecnode *ecn_add_child( ecnode *parent );
 ecnode *ecn_add_child_type( ecnode *parent, ECN_TYPE type );
 void ecn_remove_node( ecnode *node );
 void ecn_delete_branch( ecnode *n );
+void ecn_delete_children( ecnode *node );
 
 ecnode *ecn_get_child_nr( ecnode *parent, int nr );
 ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr );

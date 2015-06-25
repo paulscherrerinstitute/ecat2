@@ -2,7 +2,8 @@
 #include "ec.h"
 
 
-int www ( void )
+/*
+int www( void )
 {
   int ch;
   struct termios oldt, newt;
@@ -18,10 +19,11 @@ int www ( void )
 
   return ch;
 }
+*/
 
 ecnode *ecroot = NULL;
 //-------------------------------------------------------------------
-#define PRINT_PHYS_CONFIG 1
+#define PRINT_PHYS_CONFIG 0
 
 int master_create_physical_config( ecnode *m )
 {
@@ -39,7 +41,14 @@ int master_create_physical_config( ecnode *m )
 #endif
     for( i = 0; i < m->mdata.master_info.slave_count; i++ )
     {
-    	if( !(slave = ecn_add_child_type( m, ECNT_SLAVE )) )
+
+    	if( slave_has_static_config( i ) )
+        {
+        	pinfo( PPREFIX "Slave %d: Static config found, skipping autoconfig\n", i );
+        	continue;
+        }
+
+        if( !(slave = ecn_add_child_type( m, ECNT_SLAVE )) )
             perrret( "%s: adding slave %d failed\n", __func__, i );
     	slave->nr = i;
 
@@ -48,7 +57,7 @@ int master_create_physical_config( ecnode *m )
 
 		sync_count = slave->slave_t.sync_count;
 
-#if 1 //PRINT_PHYS_CONFIG
+#if PRINT_PHYS_CONFIG
         pinfo( "   Slave %d: SMs %d, alias %d, vendor id 0x%08x, revision nr 0x%08x, product code 0x%08x, sernr 0x%08x\n",
                 i,
                 sync_count,
@@ -59,6 +68,8 @@ int master_create_physical_config( ecnode *m )
                 slave->slave_t.serial_number
              );
 #endif
+
+
 
 		if( slave_is_6692( i ) >= 0 )
     	{
@@ -339,8 +350,8 @@ ecnode *add_domain( ecnode *m, int rate )
         return 0;
 	pinfo( "Domain %d: Autoconfig found %d entries\n", d->nr, nregs );
 
-#if 1
-int i;
+#if 0
+	int i;
 	for( i = 0; i < nregs; i++ )
 	{
 		printf( "%d.  alias %d, pos %d, vendor 0x%x, pcode 0x%x, 0x%04x:%02x, blen=%d\n",
@@ -359,7 +370,6 @@ int i;
 	if( retv)
 		perrret( "%s: ecrt_domain_reg_pdo_entry_list failed!\n", __func__ );
 
-	printf( "------------ after reg list ---------------\n" );
 	size = ecrt_domain_size( d->domain_t );
 	if( size <= 0 )
 		perrret( "%s: ecrt_domain_size() returned %s value %d\n", __func__, !size ? "zero" : "negative", size );

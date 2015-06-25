@@ -14,6 +14,8 @@ device( mbbi,       CONSTANT, devethercatmbbi,    "ecat2" )
 device( mbbo,       CONSTANT, devethercatmbbo,    "ecat2" )
 device( longin,     CONSTANT, devethercatlongin,  "ecat2" )
 device( longout,    CONSTANT, devethercatlongout, "ecat2" )
+device( stringin,   CONSTANT, devethercatstringin,  "ecat2" )
+device( stringout,  CONSTANT, devethercatstringout, "ecat2" )
 
 
 

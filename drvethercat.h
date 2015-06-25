@@ -25,41 +25,6 @@ typedef struct {
 
 
 
-typedef struct ecat {
-	struct ecat *next;
-
-
-	ecnode *m;
-	ecnode *d;
-	long rate;
-	double freq;
-
-	IOSCANPVT r_scan;
-	IOSCANPVT w_scan;
-
-	int dnr; // domain nr
-
-	char *mmap_fname;
-
-	char *r_data;
-	char *w_data;
-
-	char *w_mask;
-
-	epicsMutexId rw_lock;
-
-	int dsize;
-	epicsThreadId dthread; // domain worker thread
-
-	epicsEventId irq;
-	epicsThreadId irqthread; // domain irq thread
-
-
-
-	int test;
-
-} ethcat;
-
 //------------------------------------------------------
 #define EC_MAX_NUM_DEVICES 1
 #define EC_DATAGRAM_NAME_SIZE 20
@@ -74,8 +39,8 @@ void process_hooks( initHookState state );
 
 ethcat *ethercatOpen( int domain_nr );
 
-int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int b_nr );
-int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int s_nr, int sm_nr, int p_nr, int e_nr, int b_nr );
+int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int *token_num );
+int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num );
 int drvDomainExists( int mnr, int dnr );
 
 int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int wrval );
@@ -84,6 +49,8 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, in
 int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask );
 int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask );
 
+int drvGetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval );
+int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval );
 
 extern int wt_counter[EC_MAX_DOMAINS];
 extern int delayed[EC_MAX_DOMAINS];
