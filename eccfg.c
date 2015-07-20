@@ -34,6 +34,9 @@ int master_create_physical_config( ecnode *m )
 
     if( ecrt_master( ecm, &m->mdata.master_info ) != 0)
         perrret( "%s: Getting master info failed\n", __func__ );
+
+    memcpy( &m->mdata.master_info_at_start, &m->mdata.master_info, sizeof(ec_master_info_t) );
+
 #if PRINT_PHYS_CONFIG
     pinfo( "-------------------------\n" );
     pinfo( "EtherCAT physical config:\n" );
@@ -41,6 +44,7 @@ int master_create_physical_config( ecnode *m )
 #endif
     for( i = 0; i < m->mdata.master_info.slave_count; i++ )
     {
+
 
     	if( slave_has_static_config( i ) )
         {
@@ -54,6 +58,9 @@ int master_create_physical_config( ecnode *m )
 
     	if( ecrt_master_get_slave( ecm, i, &slave->slave_t ) )
             perrret( "%s: cannot get slave %d info\n", __func__, i );
+    	memcpy( &slave->sdata.config_slave_info, &slave->slave_t, sizeof(ec_slave_info_t) );
+    	slave->sdata.check = 1;
+
 
 		sync_count = slave->slave_t.sync_count;
 
@@ -131,11 +138,7 @@ int master_create_physical_config( ecnode *m )
 	#endif
 	                }
 
-
 	            }
-
-
-
 
 	        }
 
@@ -290,7 +293,7 @@ int domain_create_autoconfig( ecnode *d )
 
 
                 	dc = &d->ddata.regs[ix];
-					dc->alias 			= 0; //slave->slave_t.alias;
+					dc->alias 			= slave->slave_t.alias;
 					dc->position 		= slave->slave_t.position;
 					dc->vendor_id		= slave->slave_t.vendor_id;
 					dc->product_code 	= slave->slave_t.product_code;

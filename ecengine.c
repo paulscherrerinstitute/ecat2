@@ -31,19 +31,57 @@ static epicsUInt32 endian_uint32( epicsUInt32 val )
 	return retv;
 }
 
+EC_ERR drvGetSysRecData( ethcat *e, system_rec_data *sysrecdata, dbCommon *record, epicsUInt32 *val )
+{
+	ecnode *s;
+	if( !e )
+		return ERR_OPERATION_FAILED;
+	if( !e->m )
+		return ERR_OPERATION_FAILED_1;
 
-int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int wrval )
+	switch( sysrecdata->sysrectype )
+	{
+		case SRT_M_STATUS:		*val = get_master_health( e ); break;
+		case SRT_S_STATUS:  	*val = get_slave_aggregate_health( e ); break;
+		case SRT_L_STATUS:		*val = get_master_link_up( e ); break;
+		case SRT_S_OP_STATUS:
+								s = ecn_get_child_nr_type( e->m, sysrecdata->nr, ECNT_SLAVE );
+								if( !s )
+									return ERR_OPERATION_FAILED_2;
+								*val = get_slave_health( e, s );
+								break;
+
+		default:				return ERR_OPERATION_FAILED_3;
+	}
+
+	return 0;
+}
+
+int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int wrval, int byteoffs, int bytelen )
 {
 	static long get_speclen_counter = 0;
 	char *rw = wrval ? e->w_data : e->r_data;
 
 	FN_CALLED3;
 	if( !e || !val )
-		return ERR_OPERATION_FAILED;
+		return ERR_BAD_ARGUMENT;
 
 	if( !e->r_data || !e->w_data )
-		return ERR_OPERATION_FAILED;
+		return ERR_BAD_REQUEST;
 
+	if( byteoffs > 0 )
+		offs += byteoffs;
+	if( bytelen > 0 )
+	{
+		if( bytelen <= sizeof(epicsUInt32) )
+			bitlen = 8 * bytelen;
+		else
+		{
+			errlogSevPrintf( errlogFatal, "%s: for this record type, length (.Lnn) has to be 0 < length < 5 (currently set to %d)\n",
+					__func__, bytelen );
+			return S_dev_badArgument;
+		}
+	}
 
 	epicsMutexMustLock( e->rw_lock );
 	switch( bitlen )
@@ -80,17 +118,31 @@ int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
     return 0;
 }
 
-int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec )
+int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int byteoffs, int bytelen )
 {
 	int retv = 0;
 
 	FN_CALLED;
 
 	if( !e || !val )
-		return ERR_OPERATION_FAILED;
+		return ERR_BAD_ARGUMENT;
 
 	if( !e->w_data )
-		return ERR_OPERATION_FAILED;
+		return ERR_BAD_REQUEST;
+
+	if( byteoffs > 0 )
+		offs += byteoffs;
+	if( bytelen > 0 )
+	{
+		if( bytelen == 3 || bytelen > sizeof(epicsUInt32) )
+		{
+			errlogSevPrintf( errlogFatal, "%s: for this record type, length (.Lnn) has to be 1, 2 or 4 (currently set to %d)\n",
+					__func__, bytelen );
+			return S_dev_badArgument;
+		}
+		else
+			bitlen = 8 * bytelen;
+	}
 
 	epicsMutexMustLock( e->rw_lock );
 	switch( bitlen )
@@ -159,16 +211,31 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
 
 #define SHOW_GET_DEBUG 0
 #define SHOW_SET_DEBUG 0
-int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
+int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask, int byteoffs, int bytelen )
 {
 
 	FN_CALLED3;
 
 	if( !e || !rval )
-		return ERR_OPERATION_FAILED;
+		return ERR_BAD_ARGUMENT;
 
 	if( !e->r_data )
 		return ERR_OPERATION_FAILED;
+
+	if( byteoffs > 0 )
+		offs += byteoffs;
+	if( bytelen > 0 )
+	{
+		if( bytelen == 3 || bytelen > sizeof(epicsUInt32) )
+		{
+			errlogSevPrintf( errlogFatal, "%s: for this record type, length (.Lnn) has to be 1, 2 or 4 (currently set to %d)\n",
+					__func__, bytelen );
+			return S_dev_badArgument;
+		}
+		else
+			bitlen = 8 * bytelen;
+	}
+
 
 #if SHOW_SET_DEBUG
 	printf( "\n%s:get before: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x\n", __func__,
@@ -186,7 +253,7 @@ int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitl
 }
 
 
-int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask )
+int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask, int byteoffs, int bytelen )
 {
 	FN_CALLED;
 
@@ -194,7 +261,21 @@ int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitle
 		return ERR_OPERATION_FAILED;
 
 	if( !e->w_data || !e->w_mask )
-		return ERR_OPERATION_FAILED;
+		return ERR_OPERATION_FAILED_1;
+
+	if( byteoffs > 0 )
+		offs += byteoffs;
+	if( bytelen > 0 )
+	{
+		if( bytelen == 3 || bytelen > sizeof(epicsUInt32) )
+		{
+			errlogSevPrintf( errlogFatal, "%s: for this record type, length (.Lnn) has to be 1, 2 or 4 (currently set to %d)\n",
+					__func__, bytelen );
+			return S_dev_badArgument;
+		}
+		else
+			bitlen = 8 * bytelen;
+	}
 
 	epicsMutexMustLock( e->rw_lock );
 
@@ -218,39 +299,48 @@ int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitle
 }
 
 
-int drvGetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval )
+int drvGetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval, int byteoffs, int bytelen )
 {
 	char *rw = e->r_data;
-	int slen = bitlen / 8;
 
 	FN_CALLED3;
 	if( !e || !val )
 		return ERR_OPERATION_FAILED;
 
 	if( !e->r_data || !e->w_data )
-		return ERR_OPERATION_FAILED;
+		return ERR_OPERATION_FAILED_1;
 
-	if( slen <= 0 || slen > 40 )
-		return ERR_OPERATION_FAILED;
+	if( bytelen <= 0 || bytelen > 40 )
+	{
+		errlogSevPrintf( errlogFatal, "%s: string of length %d not supported\n",
+													__func__, bytelen );
+		return ERR_BAD_ARGUMENT;
+	}
 
+	if( byteoffs < 0 )
+		byteoffs = 0;
+	if( bytelen > e->d->ddata.dsize ||
+			(byteoffs + bytelen) > e->d->ddata.dallocated )
+	{
+		errlogSevPrintf( errlogFatal, "%s: additional offset (.O%d) and/or length (.L%d) exceed domain size/allocated memory limits\n",
+													__func__, byteoffs, bytelen );
+		return S_dev_badArgument;
+	}
 
 	epicsMutexMustLock( e->rw_lock );
 
 	memcpy( oval, val, 40 );
-	memcpy( val, rw + offs, slen );
-	if( slen < 40 )
-		*(val + slen) = 0;
+	memset( val, 0, 40 );
+	memcpy( val, rw + offs + byteoffs, bytelen );
 
 	epicsMutexUnlock( e->rw_lock );
-
 
     return 0;
 }
 
-int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval )
+int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval, int byteoffs, int bytelen )
 {
-	int retv = 0,
-		slen = bitlen / 8;
+	int retv = 0;
 
 	FN_CALLED;
 
@@ -258,45 +348,357 @@ int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval )
 		return ERR_OPERATION_FAILED;
 
 	if( !e->w_data )
-		return ERR_OPERATION_FAILED;
+		return ERR_OPERATION_FAILED_1;
 
-	if( slen <= 0 || slen > 40 )
-		return ERR_OPERATION_FAILED;
+	if( bytelen <= 0 || bytelen > 40 )
+	{
+		errlogSevPrintf( errlogFatal, "%s: string of length %d not supported\n",
+													__func__, bytelen );
+		return ERR_BAD_ARGUMENT;
+	}
+
+	if( byteoffs < 0 )
+		byteoffs = 0;
+	if( bytelen > e->d->ddata.dsize ||
+			(byteoffs + bytelen) > e->d->ddata.dallocated )
+	{
+		errlogSevPrintf( errlogFatal, "%s: additional offset (.O%d) and/or length (.L%d) exceed domain size/allocated memory limits\n",
+													__func__, byteoffs, bytelen );
+		return S_dev_badArgument;
+	}
+
+	if( bytelen < 40 )
+		*(val + bytelen) = 0;
 
 	epicsMutexMustLock( e->rw_lock );
 
-	memcpy( e->w_data + offs, val, slen );
-	memset( e->w_mask + offs, 0xff, slen );
+	memcpy( e->w_data + offs + byteoffs, val, bytelen );
+	memset( e->w_mask + offs + byteoffs, 0xff, bytelen );
 
 	epicsMutexUnlock( e->rw_lock );
 
     return retv;
 }
 
-int ec_domain_received( ecnode *d )
+
+
+int drvGetValueFloat(
+		ethcat *e,
+		int offs,
+		int bit,
+		epicsUInt32 *val,
+		int bitlen,
+		int bitspec,
+		int wrval,
+		int byteoffs,
+		int bytelen,
+		epicsType etype,
+		double *fval
+)
 {
-    int fd, retv;
-	ioctl_trans io;
 
-	io.dnr = d->nr;
+	FN_CALLED3;
+	if( !e )
+		return ERR_BAD_ARGUMENT;
 
-	if( (fd = open("/dev/psi_ethercat", O_RDWR)) < 0)
-	{
-		errlogSevPrintf( errlogFatal, "%s: Cannot open device /dev/psi_ethercat\n", __func__ );
-		return FAIL;
-	}
+	if( !val )
+		return ERR_BAD_ARGUMENT_1;
 
-	if( (retv = ioctl( fd, IOCTL_MSG_DREC, &io)) < 0 )
-	{
-		close(fd);
-		errlogSevPrintf( errlogFatal, "%s: Register does not exist, or cannot access device /dev/psi_ethercat\n", __func__ );
-		return FAIL;
-	}
+	if( !e->r_data || !e->w_data )
+		return ERR_PREREQ_FAIL;
 
-	close(fd);
+	if( byteoffs > 0 )
+		offs += byteoffs;
+
+	epicsMutexMustLock( e->rw_lock );
+
+	if( etype == epicsFloat32T )
+		*fval = *(float *)(e->r_data + offs);
+	else
+		*fval = *(double *)(e->r_data + offs);
+
+	epicsMutexUnlock( e->rw_lock );
+
+
+    return 0;
+}
+
+int drvSetValueFloat(
+		ethcat *e,
+		int offs,
+		int bit,
+		epicsUInt32 *val,
+		int bitlen,
+		int bitspec,
+		int byteoffs,
+		int bytelen,
+		epicsType etype,
+		double *fval
+ )
+{
+	int retv = 0;
+
+	FN_CALLED;
+
+	if( !e )
+		return ERR_BAD_ARGUMENT;
+
+	if( !val )
+		return ERR_BAD_ARGUMENT_1;
+
+	if( !e->w_data )
+		return ERR_PREREQ_FAIL;
+
+	if( byteoffs > 0 )
+		offs += byteoffs;
+
+	epicsMutexMustLock( e->rw_lock );
+
+	if( etype == epicsFloat32T )
+		*(float *)(e->w_data + offs) = *fval;
+	else
+		*(double *)(e->w_data + offs) = *fval;
+
+	memset( e->w_mask + offs, 0xff, etype == epicsFloat32T ? sizeof(float) : sizeof(double) );
+
+	epicsMutexUnlock( e->rw_lock );
+
+    return retv;
+}
+
+
+
+
+int drvGetBlock(
+		ethcat *e,
+		char *buf,
+		int offs,
+		int len
+)
+{
+	FN_CALLED3;
+
+	if( !e )
+		return ERR_BAD_ARGUMENT;
+
+	if( !buf )
+		return ERR_BAD_ARGUMENT_1;
+
+	if( len < 1 )
+		return ERR_BAD_ARGUMENT_2;
+
+	if( offs + len > e->d->ddata.dsize )
+		return ERR_BAD_ARGUMENT_3;
+
+	if( !e->r_data )
+		return ERR_PREREQ_FAIL;
+
+
+	epicsMutexMustLock( e->rw_lock );
+
+	memcpy( buf, e->r_data + offs, len );
+
+	epicsMutexUnlock( e->rw_lock );
+
+	return ERR_NO_ERROR;
+}
+
+
+
+
+
+/*-------------------------------------------------------------------*/
+/*                                                                   */
+/* System health check thread                                                        */
+/*                                                                   */
+/*-------------------------------------------------------------------*/
+
+void set_master_health( ethcat *ec, int health )
+{
+	epicsMutexMustLock( ec->health_lock );
+	ec->m->mdata.health = health;
+	epicsMutexUnlock( ec->health_lock );
+}
+
+int get_master_health( ethcat *ec )
+{
+	int retv;
+	epicsMutexMustLock( ec->health_lock );
+	retv = ec->m->mdata.health;
+	epicsMutexUnlock( ec->health_lock );
 
 	return retv;
 }
+
+void set_master_link_up( ethcat *ec, int link_up )
+{
+	epicsMutexMustLock( ec->health_lock );
+	ec->m->mdata.link_up = link_up;
+	epicsMutexUnlock( ec->health_lock );
+}
+
+int get_master_link_up( ethcat *ec )
+{
+	int retv;
+	epicsMutexMustLock( ec->health_lock );
+	retv = ec->m->mdata.link_up;
+	epicsMutexUnlock( ec->health_lock );
+
+	return retv;
+}
+
+void set_slave_health( ethcat *ec, ecnode *s, int health )
+{
+	epicsMutexMustLock( ec->health_lock );
+	s->sdata.health = health;
+	epicsMutexUnlock( ec->health_lock );
+}
+
+int get_slave_health( ethcat *ec, ecnode *s )
+{
+	int retv;
+	if( !s )
+		return 0;
+	epicsMutexMustLock( ec->health_lock );
+	retv = s->sdata.health;
+	epicsMutexUnlock( ec->health_lock );
+
+	return retv;
+}
+
+void set_slave_aggregate_health( ethcat *ec, int health )
+{
+	epicsMutexMustLock( ec->health_lock );
+	ec->m->mdata.slave_aggr_health = health;
+	epicsMutexUnlock( ec->health_lock );
+
+}
+
+int get_slave_aggregate_health( ethcat *ec )
+{
+	int retv;
+	epicsMutexMustLock( ec->health_lock );
+	retv = ec->m->mdata.slave_aggr_health;
+	epicsMutexUnlock( ec->health_lock );
+
+	return retv;
+
+}
+
+void ec_shc_thread( void *data )
+{
+	int setto, sl_aggr, start_slave_count, last_count;
+	ethcat *ec = (ethcat *)data;
+	struct timespec tperiod = { .tv_sec = 1, .tv_nsec = 0 };
+	ec_master_t *ecm;
+	ec_master_info_t *minfo;
+	ec_master_state_t state;
+	ecnode *n;
+	ec_slave_info_t *config_sinfo, current_sinfo;
+
+	if( !ec )
+	{
+		errlogSevPrintf( errlogFatal, "%s: data not valid\n", __func__ );
+		goto thread_out;
+	}
+
+	if( !ec->m )
+	{
+		errlogSevPrintf( errlogFatal, "%s: master not valid\n", __func__ );
+		goto thread_out;
+	}
+	if( !ec->m->child )
+	{
+		errlogSevPrintf( errlogFatal, "%s: no slaves found\n", __func__ );
+		goto thread_out;
+	}
+	ecm = ec->m->mdata.master;
+	if( !ecm )
+	{
+		errlogSevPrintf( errlogFatal, "%s: master not valid (2)\n", __func__ );
+thread_out:
+		errlogSevPrintf( errlogFatal, "%s: System healt check thread NOT started!\n", __func__ );
+		return;
+	}
+
+	minfo = &ec->m->mdata.master_info;
+	set_master_health( ec, 1 );
+	set_master_link_up( ec, 1 );
+
+	last_count = start_slave_count = ec->m->mdata.master_info_at_start.slave_count;
+
+    while(1)
+    {
+		clock_nanosleep( CLOCK_MONOTONIC, 0, &tperiod, NULL );
+
+		if( ecrt_master( ecm, minfo ) )
+        {
+			set_master_health( ec, 0 );
+			set_master_link_up( ec, 0 );
+			set_slave_aggregate_health( ec, 0 );
+			continue;
+        }
+		else
+			set_master_health( ec, 1 );
+
+		if( !minfo->link_up )
+        {
+			set_master_link_up( ec, 0 );
+			continue;
+        }
+		else
+			set_master_link_up( ec, 1 );
+
+
+		ecrt_master_state( ecm, &state );
+
+
+		if( last_count != state.slaves_responding )
+			printf( PPREFIX "Number of slaves responding has changed to %d (%d slaves expected)!\n",
+								state.slaves_responding, start_slave_count );
+		last_count = state.slaves_responding;
+
+		sl_aggr = 1;
+		n = ec->m->child;
+		do
+		{
+			if( n->type != ECNT_SLAVE )
+				continue;
+			if( n->sdata.check )
+			{
+				setto = 0;
+				config_sinfo = &n->sdata.config_slave_info;
+				memset( &current_sinfo, 0, sizeof(ec_slave_info_t) );
+
+				if( !ecrt_master_get_slave( ecm, n->nr, &current_sinfo ) )
+				{
+
+					if( 	config_sinfo->vendor_id 		== current_sinfo.vendor_id 		&&
+							config_sinfo->product_code 		== current_sinfo.product_code 	&&
+							config_sinfo->revision_number 	== current_sinfo.revision_number &&
+							config_sinfo->serial_number 	== current_sinfo.serial_number 	&&
+							current_sinfo.al_state & S_OP
+						)
+							setto = 1;
+				}
+
+				sl_aggr &= setto;
+				set_slave_health( ec, n, setto );
+
+			}
+
+		} while( (n = n->next) );
+
+		if( minfo->slave_count != start_slave_count  ||
+				state.slaves_responding != start_slave_count )
+			sl_aggr = 0;
+
+		set_slave_aggregate_health( ec, sl_aggr );
+
+    }
+
+}
+
 
 
 /*-------------------------------------------------------------------*/
@@ -349,8 +751,6 @@ void process_sts_entries( ecnode *d )
 	register int i;
 	domain_register *from, *to;
 	sts_entry **se;
-
-	static int cccc = 0;
 
 	epicsMutexMustLock( d->ddata.sts_lock );
     for( se = &(d->ddata.sts); *se; se = &((*se)->next) )
@@ -461,7 +861,7 @@ void ec_worker_thread( void *data )
 		while( 1 )
 		{
             ecrt_master_receive( ecm );
-    		if( ec_domain_received( ec->d ) )
+    		if( ecrt_domain_received( ecd ) )
     		{
     			recd[dnr]++;
             	break;

@@ -44,7 +44,8 @@
 #include <longoutRecord.h>
 #include <stringinRecord.h>
 #include <stringoutRecord.h>
-#include <waveformRecord.h>
+#include <aaiRecord.h>
+#include <aaoRecord.h>
 #include <initHooks.h>
 #define HAVE_VME
 #include <epicsTypes.h>
@@ -56,7 +57,7 @@
 
 #include <time.h>
 
-#include "../ethercatmaster/1.5.2/include/ecrt.h"
+#include "ecrt.h"
 
 
 #include "eccommon.h"

@@ -5,6 +5,31 @@
 #define pe_name(node) 	(d->ddata.reginfos[i].pdo_entry->pdo_entry_t->name ? get_pdo_entry_t(node)->name : "<no name>")
 void print_pdo_entry( ecnode *pe, int bitspec );
 
+//----------------------------------------------------------------------
+char *strtoupper( char *s )
+{
+	int ix = -1;
+	if( !s )
+		return NULL;
+	while( s[++ix] )
+		if( isalpha(s[ix]) )
+			s[ix] = toupper( s[ix] );
+	return s;
+}
+
+char *strtolower( char *s )
+{
+	int ix = -1;
+	if( !s )
+		return NULL;
+	while( s[++ix] )
+		if( isalpha(s[ix]) )
+			s[ix] = tolower( s[ix] );
+	return s;
+}
+
+
+//----------------------------------------------------------------------
 
 //-------------------------------------------------------------------
 //
@@ -43,7 +68,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 	printf( "%8s", sbuf );
 
 
-	drvGetValue( e, byte, bit, &val, len, -1, 0 );
+	drvGetValue( e, byte, bit, &val, len, -1, 0, -1, -1 );
 
 	switch( len )
 	{
@@ -100,18 +125,27 @@ static int ect_print_d_entry_values( int dnr )
 #define PRINT_RECVAL  1
 
 #if PRINT_RECVAL
-static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bitlen, int bitspec, int nobt, int shift, int mask, int sio )
+static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bitlen, int bitspec,
+																		int nobt, int shift, int mask, int sio,
+																		int byteoffs, int bytelen )
 {
 	epicsUInt32 val;
-	char sbuf[128] = { 0 };
+	char sbuf[128] = { 0 }, sval[40+1], oval[40+1];
 
 	if( rectype == REC_MBBI || rectype == REC_MBBO )
 	{
-	    drvGetValueMasked( e, byte, bit, &val, bitlen, nobt, shift, mask );
+	    drvGetValueMasked( e, byte, bit, &val, bitlen, nobt, shift, mask, byteoffs, bytelen );
 	    val >>= shift;
 	}
+	else if( rectype == REC_STRINGIN || rectype == REC_STRINGOUT )
+	{
+	    drvGetValueString( e, byte, bitlen, sval, oval, byteoffs, bytelen );
+	    sprintf( sbuf, "offset +%d, ", byteoffs );
+	    printf( " = '%s' (%slength %d)", sval, sbuf, bytelen );
+	    return;
+	}
 	else
-		drvGetValue( e, byte, bit, &val, bitlen, bitspec, 0 );
+		drvGetValue( e, byte, bit, &val, bitlen, bitspec, 0, byteoffs, bytelen );
 
 	if( bitspec > -1 )
 		bitlen = 1;
@@ -226,7 +260,9 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 		if( (*cr)->rectype == REC_STRINGIN || (*cr)->rectype == REC_STRINGOUT )
 			sio = 1;
 		ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs, (*cr)->dreg_info->bit, (*cr)->dreg_info->bitlen,
-							(*cr)->dreg_info->bitspec, (*cr)->dreg_info->nobt, (*cr)->dreg_info->shft, (*cr)->dreg_info->mask, sio );
+							(*cr)->dreg_info->bitspec, (*cr)->dreg_info->nobt, (*cr)->dreg_info->shft, (*cr)->dreg_info->mask,
+							sio,
+							(*cr)->dreg_info->byteoffs, (*cr)->dreg_info->bytelen );
 #endif
 
 		if( (*cr)->next )
@@ -268,7 +304,7 @@ static void ect_print_val_sts( ethcat *e, ecnode *d, domain_register *ft )
 
 	int bitlen = ft->bitlen;
 
-	drvGetValue( e, ft->offs, ft->bit, &val, ft->bitlen, ft->bitspec, 0 );
+	drvGetValue( e, ft->offs, ft->bit, &val, ft->bitlen, ft->bitspec, 0, ft->byteoffs, ft->bytelen );
 
 	if( ft->bitspec > -1 )
 		bitlen = 1;
@@ -931,10 +967,10 @@ long sts( char *from, char *to )
     	goto getout;
 
 
-    if( parse_str( from, &e_from, &pe_from, &dreg_nr_from, &dreg_from ) != OK )
+    if( parse_str( from, &e_from, &pe_from, &dreg_nr_from, &dreg_from, NULL ) != OK )
         return ERR_BAD_ARGUMENT;
 
-    if( parse_str( to, &e_to, &pe_to, &dreg_nr_to, &dreg_to ) != OK )
+    if( parse_str( to, &e_to, &pe_to, &dreg_nr_to, &dreg_to, NULL ) != OK )
         return ERR_BAD_ARGUMENT;
 
 	add_new_sts_entry( e_from->d, pe_from, pe_to, &dreg_from, &dreg_to );
@@ -1012,23 +1048,6 @@ static char *csc_cmd_str[] = {
 	NULL
 };
 
-char *strtolower( char *s )
-{
-	int i = 0, len;
-	if( !s )
-		return s;
-	len = strlen( s );
-	if( !len )
-		return s;
-
-	do {
-		s[i] = tolower( s[i] );
-	} while( s[++i] );
-
-	return s;
-}
-
-
 
 typedef struct {
 	cfgslave_cmd cmd;
@@ -1038,7 +1057,7 @@ typedef struct {
 static int cfg_prg_no_of_steps = 0;
 static cfgslave_prgstep *cfg_prg = NULL;
 #define EXTRA_DUPLICATE_CHECK 0
-
+#define CFG2
 
 
 int slave_has_static_config( int slave_nr )
@@ -1053,54 +1072,7 @@ int slave_has_static_config( int slave_nr )
 
 
 
-#define CFG2
-//#define CFG2_UPDATE
-
-
-#ifdef CFG2_UPDATE
-static void cfg_update_info( ecnode *node )
-{
-	int i;
-	cfgslave_prgstep *step;
-
-	if( !node )
-		return;
-	if( node->child )
-		cfg_update_info( node->child );
-
-	while( node->next )
-		cfg_update_info( node = node->next );
-
-	switch( node->type )
-	{
-		case ECNT_SLAVE:
-							ecrt_master_get_slave( node->parent, node->nr, &node->slave_t )
-							break;
-		case ECNT_SYNC:
-							ecrt_master_get_sync_manager( node->parent->parent, node->parent->nr, node->nr, &node->sync_t )
-							break;
-		case ECNT_PDO:
-							if( !ecrt_master_get_pdo( node->parent->parent->parent, node->parent->parent->nr, node->parent->nr, node->nr, &node->pdo_t ) )
-								break;
-
-							for( i = node->pdo_t->n_entries = 0; i < cfg_prg_no_of_steps; i++ )
-								if( step[i]->cmd == CSC_PDO_ADD_ENTRY &&
-										step[i]->args[0] == node->parent->parent->nr && // slave
-										step[i]->args[1] == node->parent->nr && // sm
-										step[i]->args[2] == node->pdo_t->index // pdo index
-										)
-								node->pdo_t->n_entries++;
-							break;
-		default:
-			break;
-	}
-
-}
-#endif
-
 #ifdef CFG2
-
-
 ecnode *ecn_get_child_pdo_t_index_type( ecnode *parent, int pdoindex, ECN_TYPE type )
 {
 	ecnode *n;
@@ -1151,7 +1123,9 @@ static ecnode *cfg_add_slave( ecnode *m, int slave_nr, ec_slave_info_t *slave_t 
 	slave->nr = slave_nr;
 
 	memcpy( &slave->slave_t, slave_t, sizeof(ec_slave_info_t) );
+	memcpy( &slave->sdata.config_slave_info, &slave_t, sizeof(ec_slave_info_t) );
 
+	slave->sdata.check = 1;
 
 	return slave;
 }
@@ -1273,7 +1247,7 @@ EC_ERR execute_configuration_prg( void )
 			return ERR_BAD_ARGUMENT;
 		}
 
-		if (!(sc = ecrt_master_slave_config( m->mdata.master, 0, slave_nr, slave_t.vendor_id, slave_t.product_code )))
+		if (!(sc = ecrt_master_slave_config( m->mdata.master, slave_t.alias, slave_nr, slave_t.vendor_id, slave_t.product_code )))
 		{
 			errlogSevPrintf( errlogFatal, "%s: cfgslave cmd '%s': failed to get slave configuration at position %d.\n", __func__, cmd, slave_nr );
 			return ERR_OPERATION_FAILED;
@@ -1479,13 +1453,13 @@ long cfgslave( char *cmd, int slave_nr, int sm_nr, int pdo_ix_dir, int entry_ix_
 
     if( !cmd )
 	{
-		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
+		errlogSevPrintf( errlogFatal, "%s: ecat2slave command not found\n", __func__ );
 		return ERR_BAD_ARGUMENT;
 	}
 
     if( !strlen(cmd) )
 	{
-		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
+		errlogSevPrintf( errlogFatal, "%s: ecat2slave command not found\n", __func__ );
 		return ERR_BAD_ARGUMENT;
 	}
 
@@ -1534,6 +1508,149 @@ long cfgslave( char *cmd, int slave_nr, int sm_nr, int pdo_ix_dir, int entry_ix_
 	return ERR_NO_ERROR;
 }
 
+
+
+
+
+
+//-------------------------------------------------------------------
+//
+// ecat2slave / genslave
+//
+//-------------------------------------------------------------------
+
+typedef enum {
+	GSC_CHK_ON_BOOT = 0,
+	GSC_CHK_EVERY,
+	GSC_CHK_ALL_EVERY,
+
+	GSC_ERROR = 0xffff
+} genslave_cmd;
+
+static char *gsc_cmd_str[] = {
+	"check_on_boot",
+	"check_every",
+
+	NULL
+};
+
+
+typedef struct {
+	genslave_cmd cmd;
+	int args[6];
+} genslave_cmdstep;
+
+static int genslave_cmd_no_of_steps = 0;
+static genslave_cmdstep *genslave_cmds = NULL;
+
+// ecat2slave {check_on_boot_only/check_always}  slavenr  vendor_id  product_code  revision_number  serial_number
+
+
+long genslave( char *cmd, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6 )
+{
+	int cmd_ix = 0;
+	genslave_cmd gscmd = GSC_ERROR;
+	genslave_cmdstep *step;
+
+    if( !cmd )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
+		return ERR_BAD_ARGUMENT;
+	}
+
+    if( !strlen(cmd) )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
+		return ERR_BAD_ARGUMENT;
+	}
+
+    do
+	{
+		if( !strcmp( strtolower(cmd), gsc_cmd_str[cmd_ix] ) )
+		{
+			gscmd = (genslave_cmd)cmd_ix;
+			break;
+		}
+	} while( gsc_cmd_str[++cmd_ix] );
+
+	if( gscmd == GSC_ERROR )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ecat2slave command '%s' is not valid\n", __func__, cmd );
+		return ERR_BAD_ARGUMENT;
+	}
+
+
+    if( !genslave_cmds )
+    {
+		step = genslave_cmds = calloc( 1, sizeof(genslave_cmdstep) );
+		genslave_cmd_no_of_steps++;
+    }
+    else
+    {
+    	genslave_cmds = realloc( genslave_cmds, (++genslave_cmd_no_of_steps)*sizeof(genslave_cmdstep) );
+    	step = genslave_cmds + genslave_cmd_no_of_steps - 1;
+    }
+
+	if( !step || !genslave_cmds )
+	{
+		errlogSevPrintf( errlogFatal, "%s: out of memory\n", __func__ );
+		return ERR_OUT_OF_MEMORY;
+	}
+
+
+	step->cmd = gscmd;
+	step->args[0] = arg1;
+	step->args[1] = arg2;
+	step->args[2] = arg3;
+	step->args[3] = arg4;
+	step->args[4] = arg5;
+	step->args[5] = arg6;
+
+
+
+	return ERR_NO_ERROR;
+}
+
+
+EC_ERR genslave_prepare_cmds( void )
+{
+/*
+	int ix = 0;
+	genslave_cmd gscmd;
+	genslave_cmdstep *step;
+	char *strcmd;
+
+	if( !genslave_cmds || !genslave_cmd_no_of_steps )
+		return ERR_NO_ERROR;
+
+	(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 60, // epicsThreadPriorityLow,
+						epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
+
+
+	do
+	{
+		step = genslave_cmds + ix;
+		gscmd = step->cmd;
+		strcmd = gsc_cmd_str[(int)gscmd];
+
+		switch( gscmd )
+		{
+			case GSC_CHK_ON_BOOT:
+				break;
+			case GSC_CHK_EVERY:
+				break;
+			case GSC_CHK_ALL_EVERY:
+				break;
+
+			default:
+				break;
+
+		}
+	} while( ++ix < genslave_cmd_no_of_steps );
+*/
+
+	return ERR_NO_ERROR;
+}
 
 
 

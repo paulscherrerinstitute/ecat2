@@ -91,6 +91,8 @@ typedef enum {
 	REC_CALC,
 	REC_CALCOUT,
 	REC_CPID,
+	REC_AAI,
+	REC_AAO,
 
 	REC_LAST,
 } RECTYPE;
@@ -101,7 +103,12 @@ typedef struct {
 	int bit;
 	int bitlen;
 
+	int byteoffs; // for .Onn
+	int bytelen; // for .Lnn
+
 	int bitspec;
+	epicsType typespec;
+	char *typename;
 
 	int rw_dir;
 	int nobt;
@@ -177,16 +184,29 @@ typedef struct _ecd_domain {
 
 } ecd_domain;
 
+typedef struct _ecd_slave {
+
+	int check;
+
+    int health;
+    ec_slave_info_t config_slave_info;
+
+} ecd_slave;
+
+
 //------------------------------------------
 
 
 typedef struct _ecd_master {
 	ec_master_t *master;
 
-	epicsMutexId io_lock;
-
 	ec_master_info_t master_info;
     ec_master_state_t master_state;
+
+	ec_master_info_t master_info_at_start;
+	int health;
+	int link_up;
+	int slave_aggr_health;
 
     struct task_struct *master_thread;
 
@@ -236,6 +256,7 @@ typedef struct _ecnode {
 	{
 		ecd_master mdata;
 		ecd_domain ddata;
+		ecd_slave sdata;
 	};
 
 
@@ -254,7 +275,6 @@ typedef struct _ecnode {
 
 	conn_rec *cr;
 
-	//ec_pdo_entry_t pe;
 } ecnode;
 
 
@@ -265,12 +285,33 @@ typedef enum {
 	ERR_ERROR = 0,
 	ERR_NO_ERROR = 1,
 
-	ERR_OUT_OF_MEMORY 		= 100,
-	ERR_BAD_ARGUMENT 		= 101,
-	ERR_BAD_REQUEST 		= 102,
-	ERR_OPERATION_FAILED 	= 103,
-	ERR_DOES_NOT_EXIST		= 104,
-	ERR_ALREADY_EXISTS 		= 105,
+	ERR_OUT_OF_MEMORY 		= 0x100,
+	ERR_BAD_REQUEST 		= 0x101,
+	ERR_DOES_NOT_EXIST		= 0x102,
+	ERR_ALREADY_EXISTS 		= 0x103,
+	ERR_PREREQ_FAIL 		= 0x104,
+
+	ERR_BAD_ARGUMENT 		= 0x1a0,
+	ERR_BAD_ARGUMENT_1 		= 0x1a1,
+	ERR_BAD_ARGUMENT_2 		= 0x1a2,
+	ERR_BAD_ARGUMENT_3 		= 0x1a3,
+	ERR_BAD_ARGUMENT_4 		= 0x1a4,
+	ERR_BAD_ARGUMENT_5 		= 0x1a5,
+	ERR_BAD_ARGUMENT_6 		= 0x1a6,
+	ERR_BAD_ARGUMENT_7 		= 0x1a7,
+	ERR_BAD_ARGUMENT_8 		= 0x1a8,
+	ERR_BAD_ARGUMENT_9 		= 0x1a9,
+
+	ERR_OPERATION_FAILED 	= 0x200,
+	ERR_OPERATION_FAILED_1 	= 0x201,
+	ERR_OPERATION_FAILED_2 	= 0x202,
+	ERR_OPERATION_FAILED_3 	= 0x203,
+	ERR_OPERATION_FAILED_4 	= 0x204,
+	ERR_OPERATION_FAILED_5 	= 0x205,
+	ERR_OPERATION_FAILED_6 	= 0x206,
+	ERR_OPERATION_FAILED_7 	= 0x207,
+	ERR_OPERATION_FAILED_8 	= 0x208,
+	ERR_OPERATION_FAILED_9 	= 0x209,
 
 
 /*
@@ -297,7 +338,10 @@ typedef enum {
 	L_NUM,
 	O_NUM,
 	D_NUM,
-	R_NUM
+	R_NUM,
+	LR_NUM,
+	M_NUM,
+	T_NUM
 } TOKNUM;
 
 
@@ -323,6 +367,7 @@ typedef struct ecat {
 	char *w_mask;
 
 	epicsMutexId rw_lock;
+	epicsMutexId health_lock;
 
 	int dsize;
 	epicsThreadId dthread; // domain worker thread
@@ -330,6 +375,7 @@ typedef struct ecat {
 	epicsEventId irq;
 	epicsThreadId irqthread; // domain irq thread
 
+	epicsThreadId scthread; // slave check thread
 
 
 	int test;
@@ -337,10 +383,28 @@ typedef struct ecat {
 } ethcat;
 
 
+typedef enum {
+	SRT_ERROR = 0,
+	SRT_M_STATUS,
+	SRT_S_STATUS,
+	SRT_L_STATUS,
+	SRT_S_OP_STATUS,
+
+
+} SYSTEM_REC_TYPE;
+
+typedef struct {
+	int system;                   // a system record?
+	SYSTEM_REC_TYPE sysrectype;
+	int nr;
+	int master_nr;
+} system_rec_data;
+
+
 #define PPREFIX "===== ecat2: "
 #define EPT_MAX_TOKENS 16
 
-int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg );
+int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg, system_rec_data *srdata );
 int slave_has_static_config( int slave_nr );
 #endif
 

@@ -97,6 +97,8 @@ typedef struct {
 #define FAILURE FAIL
 #define EPICFAIL FAILURE
 
+#define ARRAY_CONVERT	0xdd
+
 
 
 #define pinfo(fmt, args...) printf( fmt, ##args )

@@ -3,25 +3,35 @@
 //----------------------------------------------------------------------------------------------
 
 
+
 typedef struct _dev_ethercat_private {
 	ethcat *e;
+
+	system_rec_data sysrecdata;
 
 	int dreg_nr;
 	domain_register dreg_info;
 
 	ecnode *pe;
 
+	// aai & aao
+	int aa_flag;
+	int ftvl_len;
+	int ftvl_type;
+
 } devethercat_private;
 
 
 _rectype rectypes[] = {
 		{ "ai", 		REC_AI, 			RIO_READ },
+		{ "aai", 		REC_AAI, 			RIO_READ },
 		{ "bi", 		REC_BI, 			RIO_READ },
 		{ "mbbi", 		REC_MBBI, 			RIO_READ },
 		{ "mbbiDirect", REC_MBBIDIRECT, 	RIO_READ },
 		{ "longin", 	REC_LONGIN, 		RIO_READ },
 		{ "stringin", 	REC_STRINGIN, 		RIO_READ },
 		{ "ao", 		REC_AO, 			RIO_WRITE },
+		{ "aao", 		REC_AAO, 			RIO_WRITE },
 		{ "bo", 		REC_BO, 			RIO_WRITE },
 		{ "mbbo", 		REC_MBBO, 			RIO_WRITE },
 		{ "mbboDirect", REC_MBBODIRECT, 	RIO_WRITE },
@@ -193,12 +203,127 @@ int dev_parse_expression( char *token )
 	return num;
 }
 
+enum KEYWORDS {
+	PK_M_STATUS = 0,
+	PK_S_STATUS,
+	PK_L_STATUS,
+	PK_S_OP_STATUS,
+};
+static char *parse_system_keywords[] = {
+		"STATUS_MASTER",
+		"STATUS_ALL_SLAVES",
+		"STATUS_LINK",
+		"STATUS_SLAVE_OP",
 
+		NULL
+};
+/*
+static char *parse_misc_keywords[] = {
+		"RAWDATA",
 
-int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg )
+		NULL
+};
+
+*/
+
+static struct { char* name; unsigned short dlen; epicsType type;} datatypes[] = {
+	{ "short",      2, epicsInt16T   },
+	{ "int16",      2, epicsInt16T   },
+
+	{ "int8",       1, epicsInt8T    },
+
+	{ "char",       1, epicsUInt8T   },
+	{ "byte",       1, epicsUInt8T   },
+	{ "uint8",      1, epicsUInt8T   },
+	{ "unsign8",    1, epicsUInt8T   },
+	{ "unsigned8",  1, epicsUInt8T   },
+
+	{ "word",       2, epicsUInt16T  },
+	{ "uint16",     2, epicsUInt16T  },
+	{ "unsign16",   2, epicsUInt16T  },
+	{ "unsigned16", 2, epicsUInt16T  },
+
+	{ "long",       4, epicsInt32T   },
+	{ "int32",      4, epicsInt32T   },
+	{ "uint32",      4, epicsInt32T   },
+
+	{ "dword",      4, epicsUInt32T  },
+	{ "uint32",     4, epicsUInt32T  },
+	{ "unsign32",   4, epicsUInt32T  },
+	{ "unsigned32", 4, epicsUInt32T  },
+
+	{ "double",     8, epicsFloat64T },
+	{ "real64",     8, epicsFloat64T },
+	{ "float64",    8, epicsFloat64T },
+
+	{ "single",     4, epicsFloat32T },
+	{ "real32",     4, epicsFloat32T },
+	{ "float32",    4, epicsFloat32T },
+	{ "float",      4, epicsFloat32T },
+
+	{ "string",     0, epicsStringT  },
+
+/*
+	{ "qword",      8, regDev64T,    },
+	{ "int64",      8, regDev64T     },
+	{ "uint64",     8, regDev64T     },
+	{ "unsign64",   8, regDev64T     },
+	{ "unsigned64", 8, regDev64T     },
+
+	{ "bcd8",       1, regDevBCD8T   },
+	{ "bcd16",      2, regDevBCD16T  },
+	{ "bcd32",      4, regDevBCD32T  },
+	{ "bcd",        1, regDevBCD8T   },
+	{ "time",       1, regDevBCD8T   },  for backward compatibility
+*/
+
+	{ NULL }
+};
+
+int parse_datatype_get_len( epicsType etype )
 {
-	char iotext[128], *tail, *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " ._\t";
-	int i, ntokens, retv = NOTOK, num, token_num[EPT_MAX_TOKENS];
+	int ix = -1;
+
+	while( datatypes[++ix].name )
+		if( datatypes[ix].type == etype )
+			return datatypes[ix].dlen;
+
+	return 0;
+}
+
+
+
+static int parse_datatype_get_type( char *token, char **name )
+{
+	int ix = -1, len = strlen( token );
+
+	if( !len || len < 3 )
+	{
+		errlogSevPrintf( errlogFatal, "%s: record type '%s' invalid\n",
+												__func__, token );
+		return -1;
+	}
+	strtolower( token );
+
+	while( datatypes[++ix].name )
+		if( !strcmp( token+1, datatypes[ix].name ) ||
+				!strcmp( token+2, datatypes[ix].name ) ) // to allow both Ttype and T=type for regDev compatibility
+		{
+			if( name )
+				*name = datatypes[ix].name;
+			return (int)datatypes[ix].type;
+		}
+
+	return -1;
+}
+
+
+
+int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg, system_rec_data *srdata  )
+{
+	char iotext[128], *tail, *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " .\t";
+	int i, ix, found = 0, ntokens, retv = NOTOK, num, token_num[EPT_MAX_TOKENS];
+
 
 	FN_CALLED;
 	strcpy( iotext, s );
@@ -212,10 +337,32 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 	// Possible INP/OUT links:
 	//
 	// dDaa.Rbb[.Bcc]              : domain register nn, optional bit cc
+	// Saa.LRbb                    : slave aa, local register bb
 	// Saa.SMbb.Pcc.Edd            : pdo entry a.b.c.d
 	// Saa.SMbb.Pcc.Edd.Bee        : pdo entry a.b.c.d, optional bit ee
 	// Saa.SMbb.Pcc.Edd.Lnn        : pdo entry a.b.c.d, optional string len nn
 	// Saa.SMbb.Pcc.Edd.Oee[.Lnn]  : pdo entry a.b.c.d, optional rel. offset ee, optional string len nn
+	//
+	// Extensions:
+	//
+	// T<type>                     :
+	//                        8-bit: int8, uint8, char, uchar, byte ubyte
+	//                       16-bit: int16, uint16, word, uword, short, ushort, i16, ui16
+	//                       32-bit: int, uint, int32, uint32, i32, ui32, dword, udword
+	//                       64-bit: long, ulong, int64, uint64, qword, uqword
+	//               (float) 32-bit: float, single, real32, float32
+	//               (float) 64-bit: double, real64, float64
+	//                  (bcd) 8-bit: bcd8, bcd
+	//                 (bcd) 16-bit: bcd16
+	//                 (bcd) 32-bit: bcd32
+	//                 (time) 8-bit: time (regDev backward compatibility)
+	//
+	// System:
+	//
+	// [Mnn] M_STATUS  			: Master nn health
+	// [Mnn] S_STATUS  			: Aggregation of health indicators of all slaves
+	// [Mnn] L_STATUS  			: Master nn link-up status
+	// [Mnn] S_OP_STATUS Smm 	: OP status for a slave
 	//
 	for( i = 0; i < EPT_MAX_TOKENS; i++ )
 		token_num[i] = -1;
@@ -224,36 +371,86 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 		if( !tokens[i] )
 			continue;
 
+		strtoupper( tokens[i] );
+
+		num = -1;
 		if( isdigit(tokens[i][1]) )
 			num = (int)strtol( tokens[i]+1, &tail, 10 );
 		else if( strlen(tokens[i]) > 3 && tokens[i][1] == '(' && tokens[i][strlen(tokens[i])-1] == ')')
 			num = dev_parse_expression( tokens[i] );
-		else
-			num = -1;
 
-		switch( toupper(tokens[i][0]) )
+		ix = -1;
+		found = 0;
+		while( parse_system_keywords[++ix] )
+			if( !strcmp( parse_system_keywords[ix], tokens[i] ) )
+			{
+				found = 1;
+				break;
+			}
+
+		if( found )
 		{
-			case 'D':	token_num[D_NUM] = num; break;
-			case 'R':	token_num[R_NUM] = num; break;
-			case 'S':	if( toupper(tokens[i][1]) == 'M' )
-							token_num[SM_NUM] = (int)strtol( tokens[i]+2, &tail, 10 );
-						else
-							token_num[S_NUM] = num; break;
-						break;
-			case 'P':	token_num[P_NUM] = num; break;
-			case 'E':	token_num[E_NUM] = num; break;
-			case 'B':	token_num[B_NUM] = num; break;
-			case 'L':   token_num[L_NUM] = num; break;
-			case 'O':   token_num[O_NUM] = num; break;
-
+			if( !srdata )
+			{
+				errlogSevPrintf( errlogFatal, "%s: System keywords are usable only in record INP/OUT strings\n",
+														__func__ );
+				return ERR_BAD_ARGUMENT;
+			}
+			srdata->sysrectype = SRT_ERROR;
+			switch( ix )
+			{
+				case PK_M_STATUS:		srdata->sysrectype = SRT_M_STATUS;			break;
+				case PK_S_STATUS:		srdata->sysrectype = SRT_S_STATUS;			break;
+				case PK_L_STATUS:		srdata->sysrectype = SRT_L_STATUS;		break;
+				case PK_S_OP_STATUS:	srdata->sysrectype = SRT_S_OP_STATUS;		break;
+				default:	return ERR_BAD_ARGUMENT;
+			}
 		}
+		else
+			switch( toupper(tokens[i][0]) )
+			{
+				case 'D':	token_num[D_NUM] = num; break;
+				case 'R':	token_num[R_NUM] = num; break;
+				case 'S':	if( toupper(tokens[i][1]) == 'M' )
+							{
+								token_num[SM_NUM] = (int)strtol( tokens[i]+2, &tail, 10 );
+								break;
+							}
+							token_num[S_NUM] = num; break;
+							break;
+				case 'P':	token_num[P_NUM] = num; break;
+				case 'E':	token_num[E_NUM] = num; break;
+				case 'B':	token_num[B_NUM] = num; break;
+				case 'L':   if( toupper(tokens[i][1]) == 'R' )
+							{
+								token_num[LR_NUM] = (int)strtol( tokens[i]+2, &tail, 10 );
+								break;
+							}
+							token_num[L_NUM] = num;
+							break;
+				case 'O':   token_num[O_NUM] = num; break;
+				case 'M':   token_num[M_NUM] = num; break;
+
+				case 'T':   token_num[T_NUM] = parse_datatype_get_type( tokens[i], &dreg->typename );
+							break;
+
+				default:	return ERR_BAD_ARGUMENT;
+
+			}
 
 
 	}
 
+	if( token_num[M_NUM] < 0 )
+		token_num[M_NUM] = 0;
 
 	if( token_num[D_NUM] < 0 )
 		token_num[D_NUM] = 0;
+
+	// type has priority over length
+	if( token_num[T_NUM] > -1 )
+		token_num[L_NUM] = -1;
+
 
     *e = ethercatOpen( token_num[D_NUM] );
     if( *e == NULL )
@@ -263,11 +460,27 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
     }
 
 	// check to see what kind of INP/OUT info was discovered
-    if( token_num[R_NUM] >= 0 )
+
+	if( (srdata->system = (srdata->sysrectype != SRT_ERROR)) )
+	{
+		srdata->master_nr = token_num[M_NUM];
+		srdata->nr = token_num[S_NUM];
+		retv = OK;
+	}
+    else if( token_num[S_NUM] >= 0 && token_num[LR_NUM] >= 0 )
+    {
+		if( drvGetLocalRegisterDesc( *e, dreg, dreg_nr, pe, token_num) != OK )
+		{
+			errlogSevPrintf( errlogFatal, "%s: INP/OUT string error (%s), slave %d, local register %d not found\n",
+													__func__, iotext, token_num[S_NUM], token_num[LR_NUM] );
+			return ERR_BAD_ARGUMENT;
+		}
+	}
+    else if( token_num[R_NUM] >= 0 )
     {
     	if( drvGetRegisterDesc( *e, dreg, *dreg_nr = token_num[R_NUM], pe, token_num) != OK )
     	{
-    		errlogSevPrintf( errlogFatal, "%s: INP/OUT string error (%s), domain %d, register number %d not found\n",
+    		errlogSevPrintf( errlogFatal, "%s: INP/OUT string error (%s), domain %d, register %d not found\n",
     												__func__, iotext, token_num[D_NUM], token_num[R_NUM] );
     		return ERR_BAD_ARGUMENT;
     	}
@@ -298,7 +511,7 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE rectype, DBLINK *reclink )
 {
 	FN_CALLED;
-	int dreg_nr, ix;
+	int ix;
 
 	FN_CALLED;
 	dev_get_record_type( record, &ix );
@@ -322,7 +535,9 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 	}
 
 
-	return parse_str( reclink->text, &priv->e, &priv->pe, &dreg_nr, &priv->dreg_info );
+	return parse_str( reclink->text, &priv->e, &priv->pe, &priv->dreg_nr, &priv->dreg_info,
+						&priv->sysrecdata
+						);
 }
 
 
@@ -347,6 +562,15 @@ if( status )                                                                    
     recGblSetSevr(record, READ_ALARM, INVALID_ALARM );                                                               \
 }                                                                                                                    \
 
+#define NO_SYSTEM_RECORD																						\
+if( priv->sysrecdata.system )																					\
+{                                                                                                               \
+	errlogSevPrintf( errlogFatal, "%s: record %s cannot be used as system record\n", __func__, record->name );  \
+    recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                          \
+	return -1;                                                                                                  \
+}
+
+
 
 //----------------------------------------------------------
 //
@@ -362,9 +586,23 @@ long dev_rw_ai( aiRecord *record )
 
    	CHECK_RECINIT;
 
-
-    status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
-    												priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
+   	if( priv->dreg_info.typespec == epicsFloat32T ||
+   			priv->dreg_info.typespec == epicsFloat64T )
+   	{
+   	    status = drvGetValueFloat( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
+									priv->dreg_info.bitlen, priv->dreg_info.bitspec,
+									0,
+									priv->dreg_info.byteoffs, priv->dreg_info.bytelen,
+									priv->dreg_info.typespec, (double*)(&record->val) );
+   	    if( !status )
+   	    	return 2;
+   	}
+   	else
+	    status = drvGetValue( priv->e, priv->dreg_info.offs,
+	    							priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
+    								priv->dreg_info.bitlen, priv->dreg_info.bitspec,
+    								0,
+    								priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -406,8 +644,16 @@ long dev_rw_ao( aoRecord *record )
 	FN_CALLED;
 
   	CHECK_RECINIT;
-    status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    							(epicsUInt32 *)(&record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+  	NO_SYSTEM_RECORD;
+
+  	if( priv->dreg_info.typespec == epicsFloat32T ||
+   			priv->dreg_info.typespec == epicsFloat64T )
+  	    status = drvSetValueFloat( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
+  	    							(epicsUInt32 *)(&record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen,
+  	    							priv->dreg_info.typespec, &record->val);
+  	else
+    	status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
+    							(epicsUInt32 *)(&record->rval), priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -450,8 +696,11 @@ long dev_rw_bi( biRecord *record )
 
    	CHECK_RECINIT;
 
-    status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &(record->rval),
-    													priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
+	if( priv->sysrecdata.system )
+   		status = drvGetSysRecData( priv->e, &priv->sysrecdata, (dbCommon *)record, &record->rval );
+	else
+    	status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval,
+    													priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -472,9 +721,10 @@ long dev_rw_bo( boRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
-    status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &(record->rval),
-    													priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval,
+    													priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -494,9 +744,10 @@ long dev_rw_mbbi( mbbiRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
     status = drvGetValueMasked( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval, priv->dreg_info.bitlen,
-    							priv->dreg_info.nobt, priv->dreg_info.shft, priv->dreg_info.mask );
+    							priv->dreg_info.nobt, priv->dreg_info.shft, priv->dreg_info.mask, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -516,9 +767,10 @@ long dev_rw_mbbo( mbboRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
     status = drvSetValueMasked( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval, priv->dreg_info.bitlen,
-    							priv->dreg_info.nobt, priv->dreg_info.shft, priv->dreg_info.mask );
+    							priv->dreg_info.nobt, priv->dreg_info.shft, priv->dreg_info.mask, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -539,9 +791,10 @@ long dev_rw_longin( longinRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
+    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -562,9 +815,10 @@ long dev_rw_longout( longoutRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
     status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -586,9 +840,10 @@ long dev_rw_stringin( stringinRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
-    status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0 );
+    status = drvGetValueString( priv->e, priv->dreg_info.offs, priv->dreg_info.bitlen,
+										record->val, record->oval, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -609,10 +864,116 @@ long dev_rw_stringout( stringoutRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
 
-    status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec );
+    status = drvSetValueString( priv->e, priv->dreg_info.offs, priv->dreg_info.bitlen,
+    									record->val, record->oval, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
+
+    return status;
+}
+
+
+//----------------------------------------------------------
+//
+// aai
+//
+//----------------------------------------------------------
+
+
+
+long dev_rw_aai( aaiRecord *record )
+{
+   	int status = 0;
+   	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+   	epicsUInt32 val;
+    int i, ix, offs, bit, bitlen;
+    char *target;
+
+    FN_CALLED;
+
+   	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
+
+  	for( ix = 0, i = priv->dreg_nr; i < priv->e->d->ddata.num_of_regs && i < priv->dreg_nr + record->nelm; i++, ix++ )
+	{
+		offs = priv->e->d->ddata.reginfos[i].byte;
+		bit = priv->e->d->ddata.reginfos[i].bit;
+		bitlen = priv->e->d->ddata.reginfos[i].bit_length;
+
+    	status = drvGetValue( priv->e, offs, bit, &val, bitlen, -1, 0, -1, -1 );
+      	CHECK_STATUS;
+
+      	target = (char *)record->bptr + ix*priv->ftvl_len;
+      	memset( target, 0, priv->ftvl_len );
+		switch( priv->ftvl_len )
+		{
+			case epicsInt8T	  :	*target = (epicsInt8)val; break;
+			case epicsUInt8T  :	*target = (epicsUInt8)val; break;
+			case epicsInt16T  :	*(epicsInt16 *)target = (epicsInt16)val; break;
+			case epicsUInt16T :	*(epicsUInt16 *)target = (epicsUInt16)val; break;
+			case epicsInt32T  :	*(epicsInt32 *)target = (epicsInt32)val; break;
+			case epicsUInt32T : *(epicsUInt32 *)target = (epicsUInt32)val; break;
+			case epicsFloat32T: *(epicsFloat32 *)target = (epicsFloat32)val; break;
+			case epicsFloat64T: *(epicsFloat64 *)target = (epicsFloat64)val; break;
+		}
+	}
+
+	record->nord = record->nelm;
+
+
+    return status;
+}
+
+
+
+//----------------------------------------------------------
+//
+// aao
+//
+//----------------------------------------------------------
+
+long dev_rw_aao( aaoRecord *record )
+{
+   	int status = 0;
+   	devethercat_private  *priv = (devethercat_private *)record->dpvt;
+   	ethcat *e = priv->e;
+   	epicsUInt32 val;
+    int i, ix, offs, bit, bitlen;
+    char *target;
+
+    FN_CALLED;
+
+   	CHECK_RECINIT;
+  	NO_SYSTEM_RECORD;
+
+	for( ix = 0, i = priv->dreg_nr; i < e->d->ddata.num_of_regs && i < priv->dreg_nr + record->nelm; i++, ix++ )
+	{
+		offs = e->d->ddata.reginfos[i].byte;
+		bit = e->d->ddata.reginfos[i].bit;
+		bitlen = e->d->ddata.reginfos[i].bit_length;
+
+      	target = (char *)record->bptr + ix*priv->ftvl_len;
+      	memset( target, 0, priv->ftvl_len );
+		switch( priv->ftvl_len )
+		{
+			case epicsInt8T	  :	val = *(epicsUInt8 *)target; break;
+			case epicsUInt8T  :	val = *(epicsUInt8 *)target; break;
+			case epicsInt16T  :	val = *(epicsInt16 *)target; break;
+			case epicsUInt16T :	val = *(epicsUInt16 *)target; break;
+			case epicsInt32T  :	val = *(epicsInt32 *)target; break;
+			case epicsUInt32T : val = *(epicsUInt32 *)target; break;
+			case epicsFloat32T: val = *(epicsFloat32 *)target; break;
+			case epicsFloat64T: val = *(epicsFloat64 *)target; break;
+		}
+
+		status = drvSetValue( priv->e, offs, bit, &val, bitlen, -1, -1, -1 );
+      	CHECK_STATUS;
+
+	}
+
+	record->nord = record->nelm;
+
 
     return status;
 }
@@ -630,11 +991,23 @@ static void add_record( int ix, devethercat_private *priv, dbCommon *record )
 	conn_rec **cr;
 	FN_CALLED;
 
+	if( !priv )
+	{
+		errlogSevPrintf( errlogFatal, "%s %s: Cannot add record, not initialized correctly\n", __func__, record->name );
+		return;
+	}
+
+
+	if( priv->sysrecdata.system )
+		return;
+
 	if( priv->pe == NULL )
 	{
 		errlogSevPrintf( errlogFatal, "%s: Cannot add record, PDO entry undefined.\n", __func__ );
 		return;
 	}
+
+
     // is this rec already registered?
     for( cr = &priv->pe->cr; *cr; cr = &(*cr)->next )
     	if( (*cr)->rec == record )
@@ -658,13 +1031,69 @@ static void add_record( int ix, devethercat_private *priv, dbCommon *record )
 
 }
 
+
+static int get_ftvl_len( dbCommon* record, int ftvl )
+{
+  	devethercat_private *priv = record->dpvt;
+
+  	if( !priv )
+		return NOTOK;
+  	switch( ftvl )
+    {
+        case DBF_CHAR:	  priv->ftvl_type = epicsInt8T;	    priv->ftvl_len = sizeof(epicsInt8);     return OK;
+        case DBF_UCHAR:	  priv->ftvl_type = epicsUInt8T;    priv->ftvl_len = sizeof(epicsUInt8);    return OK;
+        case DBF_SHORT:   priv->ftvl_type = epicsInt16T;    priv->ftvl_len = sizeof(epicsInt16);    return OK;
+        case DBF_USHORT:  priv->ftvl_type = epicsUInt16T;   priv->ftvl_len = sizeof(epicsUInt16);   return OK;
+        case DBF_LONG:    priv->ftvl_type = epicsInt32T;    priv->ftvl_len = sizeof(epicsInt32);    return OK;
+        case DBF_ULONG:   priv->ftvl_type = epicsUInt32T;   priv->ftvl_len = sizeof(epicsUInt32);   return OK;
+        case DBF_FLOAT:   priv->ftvl_type = epicsFloat32T;  priv->ftvl_len = sizeof(epicsFloat32);  return OK;
+        case DBF_DOUBLE:  priv->ftvl_type = epicsFloat64T;  priv->ftvl_len = sizeof(epicsFloat64);  return OK;
+    }
+    free( record->dpvt );
+    record->dpvt = NULL;
+	errlogSevPrintf( errlogFatal, "%s %s: FTVL value %d is invalid\n", __func__, record->name, ftvl );
+
+    return NOTOK;
+}
+
+
+
+
+static int init_aa( devethercat_private *priv, aaiRecord *record, RECTYPE rectype, DBLINK *reclink )
+{
+	// sets dtype and dlen
+	if( get_ftvl_len( (dbCommon*)record, record->ftvl ) != OK )
+		return NOTOK;
+	if( (record->nord = record->nelm) < 1 ||
+			priv->dreg_nr + record->nelm > priv->e->d->ddata.num_of_regs
+			)
+	{
+		errlogSevPrintf( errlogFatal, "%s %s: Number of elements %d is invalid\n", __func__, record->name, record->nelm );
+	    return NOTOK;
+	}
+
+	record->bptr = calloc( record->nelm, priv->ftvl_len );
+	if( !record->bptr )
+	{
+		errlogSevPrintf( errlogFatal, "%s %s: Out of memory\n", __func__, record->name );
+	    return NOTOK;
+	}
+
+	return OK;
+}
+
+
+
+
 #define PARSE_IO_STR( rtype, inout )                                                                         \
 reclink = &((rtype##Record *)record)->inout;                                                               \
 if( dev_parse_io_string( priv, record, rectype, reclink ) != OK )                                            \
 {                                                                                                            \
 	errlogSevPrintf( errlogFatal, "%s: Parsing INP/OUT link '%s' failed (record %s, type %s)\n", __func__,   \
 			reclink->text, record->name, rectypes[ix].recname );                                             \
-	return ERR_BAD_ARGUMENT;                                                                                \
+	free( priv );                                                                                            \
+	record->dpvt = NULL;                                                                                     \
+	return ERR_BAD_ARGUMENT;																				\
 }
 
 long dev_init_record(
@@ -674,7 +1103,8 @@ long dev_init_record(
   	devethercat_private *priv;
   	DBLINK *reclink;
   	int ix = 0;
-  	char bitsp[20] = { 0 }, bitsp2[20] = { 0 };
+  	char bitsp[20] = { 0 }, bitsp2[20] = { 0 }, bitsp3[128] = { 0 },
+  			boffs[32] = { 0 }, blen[32] = { 0 }, *msg;
   	RECTYPE rectype = dev_get_record_type( record, &ix );
 	FN_CALLED;
 
@@ -741,6 +1171,19 @@ long dev_init_record(
 						PARSE_IO_STR( stringout, out );
 						break;
 
+    	case REC_AAI:
+    					PARSE_IO_STR( aai, inp );
+    					if( init_aa( priv, (aaiRecord *)record, rectype, reclink ) != OK )
+    						return ERR_OPERATION_FAILED;
+
+    					break;
+
+    	case REC_AAO:
+    					PARSE_IO_STR( aao, out );
+    					if( init_aa( priv, (aaiRecord *)record, rectype, reclink ) != OK )
+    						return ERR_OPERATION_FAILED;
+    					break;
+
     	default:
 						errlogSevPrintf( errlogFatal, "%s: record %s currently not supported\n", __func__, record->name );
 						return ERR_BAD_ARGUMENT;
@@ -748,29 +1191,69 @@ long dev_init_record(
 
 	add_record( ix, priv, record );
 
-    // make a somewhat prettier printout
-    if( priv->dreg_info.bitspec >= 0 )
-    {
-    	sprintf( bitsp, ".b%d", priv->dreg_info.bitspec );
-    	sprintf( bitsp2, "(+%d)", priv->dreg_info.bitspec );
-    }
+	if( !priv->sysrecdata.system )
+	{
+		bitsp[0] = bitsp2[0] = bitsp3[0] = blen[0] = boffs[0] = 0;
+		// make a somewhat prettier printout
+		if( priv->dreg_info.bitspec >= 0 )
+		{
+			sprintf( bitsp, ".b%d", priv->dreg_info.bitspec );
+			sprintf( bitsp2, "(+%d)", priv->dreg_info.bitspec );
+		}
 
-    printf( PPREFIX "configured record %s (%s) as d%d.r%d (s%d.sm%d.p%d.e%d%s), offset %d.%d%s (%d bit%s)\n",
-    			record->name,
+
+		if( priv->dreg_info.byteoffs > 0 )
+			sprintf( boffs, "shifted to %d.%d, (+%d byte%s), ",
+						priv->dreg_info.offs + priv->dreg_info.byteoffs,
+						priv->dreg_info.bit,
+						priv->dreg_info.byteoffs,
+						priv->dreg_info.byteoffs == 1 ? "" : "s"
+					);
+
+		if( priv->dreg_info.bytelen > 0 )
+			sprintf( blen, ", %sblock length %d byte%s",
+									boffs,
+									priv->dreg_info.bytelen,
+									priv->dreg_info.bytelen ==1 ? "" : "s"
+					);
+		if( priv->dreg_info.typename )
+			sprintf( bitsp3, "(override type: %s)", priv->dreg_info.typename );
+		else
+			sprintf( bitsp3,"(%d bit%s)", priv->dreg_info.bitlen,
+									priv->dreg_info.bitlen == 1 ? "" : "s" );
+
+		printf( PPREFIX "configured record %s (%s) as d%d.r%d (s%d.sm%d.p%d.e%d%s), offset %d.%d%s %s %s\n",
+					record->name,
+					record->rdes->name,
+					priv->e->dnr,
+					priv->dreg_nr,
+					priv->pe->parent->parent->parent->nr,
+					priv->pe->parent->parent->nr,
+					priv->pe->parent->nr,
+					priv->pe->nr,
+					bitsp,
+					priv->dreg_info.offs,
+					priv->dreg_info.bit,
+					bitsp2,
+					bitsp3,
+					blen
+
+				);
+	}
+	else
+	{
+		msg = parse_system_keywords[(int)priv->sysrecdata.sysrectype-1] ? parse_system_keywords[(int)priv->sysrecdata.sysrectype-1] : "unknown type";
+		if( priv->sysrecdata.sysrectype == SRT_S_OP_STATUS )
+			sprintf( blen, " (m%d.s%d)", priv->sysrecdata.master_nr, priv->sysrecdata.nr );
+		else
+			sprintf( blen, " (m%d)", priv->sysrecdata.master_nr );
+		printf( PPREFIX "configured record %s (%s) as %s%s system record\n",
+				record->name,
 				record->rdes->name,
-				priv->e->dnr,
-				priv->dreg_nr,
-				priv->pe->parent->parent->parent->nr,
-				priv->pe->parent->parent->nr,
-				priv->pe->parent->nr,
-				priv->pe->nr,
-				bitsp,
-				priv->dreg_info.offs,
-				priv->dreg_info.bit,
-				bitsp2,
-				priv->dreg_info.bitlen,
-				priv->dreg_info.bitlen == 1 ? "" : "s"
-    		);
+				msg,
+				blen
+				);
+	}
 
     return 0;
 
@@ -789,6 +1272,8 @@ devsupport( longin );
 devsupport( longout );
 devsupport( stringin );
 devsupport( stringout );
+devsupport( aai );
+devsupport( aao );
 
 
 

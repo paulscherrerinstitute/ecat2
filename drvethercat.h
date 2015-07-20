@@ -40,17 +40,46 @@ void process_hooks( initHookState state );
 ethcat *ethercatOpen( int domain_nr );
 
 int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pentry, int *token_num );
+int drvGetLocalRegisterDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num );
 int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num );
 int drvDomainExists( int mnr, int dnr );
 
-int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int wrval );
-int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec );
+int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int wrval, int byteoffs, int bytelen );
+int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int byteoffs, int bytelen );
 
-int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask );
-int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask );
+int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask, int byteoffs, int bytelen );
+int drvSetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask, int byteoffs, int bytelen );
 
-int drvGetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval );
-int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval );
+int drvGetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval, int byteoffs, int bytelen );
+int drvSetValueString( ethcat *e, int offs, int bitlen, char *val, char *oval, int byteoffs, int bytelen );
+
+int drvGetValueFloat(
+		ethcat *e,
+		int offs,
+		int bit,
+		epicsUInt32 *val,
+		int bitlen,
+		int bitspec,
+		int wrval,
+		int byteoffs,
+		int bytelen,
+		epicsType etype,
+		double *fval
+ );
+int drvSetValueFloat(
+		ethcat *e,
+		int offs,
+		int bit,
+		epicsUInt32 *val,
+		int bitlen,
+		int bitspec,
+		int byteoffs,
+		int bytelen,
+		epicsType etype,
+		double *fval
+ );
+
+int parse_datatype_get_len( epicsType etype );
 
 extern int wt_counter[EC_MAX_DOMAINS];
 extern int delayed[EC_MAX_DOMAINS];

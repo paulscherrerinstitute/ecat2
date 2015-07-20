@@ -5,6 +5,7 @@
 
 #define ECAT_TNAME_D	"ecat_dom"
 #define ECAT_TNAME_IRQ	"ecat_irq"
+#define ECAT_TNAME_SC	"ecat_sc"
 
 int drvethercatDebug = 0;
 static ethcat *ecatList = NULL;
@@ -56,14 +57,16 @@ void process_hooks( initHookState state )
 				// it only delays the inevitable callback buffer overrun
 				//callbackSetQueueSize( 1000000 );
 
-				// start domain worker threads
+				// start various threads
 				for( ec = &ecatList; *ec; ec = &(*ec)->next )
 				{
 					(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 60, // epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
 					(*ec)->irqthread = epicsThreadMustCreate( ECAT_TNAME_IRQ, epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_irq_thread, *ec );
-					printf( PPREFIX "worker and irq threads started\n" );
+					(*ec)->scthread = epicsThreadMustCreate( ECAT_TNAME_SC, epicsThreadPriorityLow,
+										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_shc_thread, *ec );
+					printf( PPREFIX "worker, irq and slave-check threads started\n" );
 				}
 				break;
 
@@ -141,10 +144,14 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 		return FAIL;
 	}
 
-	dreg->offs = d->ddata.reginfos[regnr].byte + (token_num[O_NUM] >= 0 ? token_num[O_NUM] : 0);
+
+	dreg->offs = d->ddata.reginfos[regnr].byte;
 	dreg->bit = d->ddata.reginfos[regnr].bit;
-	dreg->bitlen = token_num[L_NUM] >= 0 ? token_num[L_NUM]*8 : d->ddata.reginfos[regnr].bit_length;
+	dreg->bitlen = d->ddata.reginfos[regnr].bit_length;
 	dreg->bitspec = token_num[B_NUM];
+	dreg->byteoffs = token_num[O_NUM];
+	dreg->bytelen = token_num[L_NUM];
+	dreg->typespec = token_num[T_NUM];
 
 	*pentry = d->ddata.reginfos[regnr].pdo_entry;
 	if( !*pentry )
@@ -155,6 +162,80 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 
 	return OK;
 }
+
+
+int drvGetLocalRegisterDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num )
+{
+	ecnode *d, *s;
+	int i, found = 0, lr = token_num[LR_NUM], sm = token_num[SM_NUM], pdo = token_num[P_NUM];
+	FN_CALLED;
+
+	if( !e )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat/e NULL - init failed\n", __func__ );
+		return FAIL;
+	}
+
+	if( !e->m )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat master NULL - domain init failed\n", __func__ );
+		return FAIL;
+	}
+
+	if( !e->d )
+	{
+		errlogSevPrintf( errlogFatal, "%s: ethcat domain NULL - domain init failed\n", __func__ );
+		return FAIL;
+	}
+
+	d = e->d;
+
+	s = ecn_get_child_nr_type( e->m, token_num[S_NUM], ECNT_SLAVE );
+	if( !s )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cannot find slave %d\n", __func__, token_num[S_NUM] );
+		return FAIL;
+	}
+
+	for( i = 0; !found && i < d->ddata.num_of_regs; i++ )
+		if( d->ddata.reginfos[i].slave == s &&
+				(sm < 0 || d->ddata.reginfos[i].sync->nr == sm ) &&
+				(pdo < 0 || d->ddata.reginfos[i].pdo->nr == pdo )
+			)
+		{
+				if( --lr < 0 )
+				{
+					found = 1;
+					break;
+				}
+		}
+
+	if( !found )
+	{
+		errlogSevPrintf( errlogFatal, "%s: cannot find local register %d in domain %d (base: slave %d, sync %d, pdo %d)\n", __func__,
+														token_num[LR_NUM], d->nr, s->nr, sm, pdo );
+		return FAIL;
+	}
+
+	*dreg_nr = i;
+	dreg->offs = d->ddata.reginfos[i].byte;
+	dreg->bit = d->ddata.reginfos[i].bit;
+	dreg->bitlen = d->ddata.reginfos[i].bit_length;
+	dreg->bitspec = token_num[B_NUM];
+	dreg->byteoffs = token_num[O_NUM];
+	dreg->bytelen = token_num[L_NUM];
+	dreg->typespec = token_num[T_NUM];
+
+	*pentry = d->ddata.reginfos[i].pdo_entry;
+	if( !*pentry )
+	{
+		errlogSevPrintf( errlogFatal, "%s: Domain register %d appears to have no pdo entry associated\n", __func__, i );
+		return FAIL;
+	}
+
+	return OK;
+}
+
 
 
 int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num )
@@ -205,10 +286,13 @@ int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pe
 		if( d->ddata.reginfos[i].pdo_entry == pe )
 		{
 			*dreg_nr = i;
-			dreg->offs = d->ddata.reginfos[i].byte + (token_num[O_NUM] >= 0 ? token_num[O_NUM] : 0);
+			dreg->offs = d->ddata.reginfos[i].byte;
 			dreg->bit = d->ddata.reginfos[i].bit;
-			dreg->bitlen = token_num[L_NUM] >= 0 ? token_num[L_NUM]*8 : d->ddata.reginfos[i].bit_length;
+			dreg->bitlen = d->ddata.reginfos[i].bit_length;
 			dreg->bitspec = token_num[B_NUM];
+			dreg->byteoffs = token_num[O_NUM];
+			dreg->bytelen = token_num[L_NUM];
+			dreg->typespec = token_num[T_NUM];
 			return OK;
 		}
 
@@ -366,6 +450,7 @@ long drvethercatConfigure(
     (*ec)->next = NULL;
     (*ec)->dnr = domain_nr;
 	(*ec)->rw_lock = epicsMutexMustCreate();
+	(*ec)->health_lock = epicsMutexMustCreate();
 	(*ec)->rate = (long)((double)1000000000.0/(double)freq);
 	(*ec)->m = m;
 	(*ec)->irq = epicsEventMustCreate( epicsEventEmpty );
@@ -457,7 +542,7 @@ static void drvethercatConfigureFunc( const iocshArgBuf *args )
 
 //----------------------
 //
-// Domain map
+// dmap
 //
 //----------------------
 static const iocshArg drvethercatDMapArg0 = { "cmd", 		iocshArgString };
@@ -500,7 +585,7 @@ static void drvethercatStatFunc( const iocshArgBuf *args )
 
 //----------------------
 //
-// ConfigEL6692
+// ecat2cfgEL6692
 //
 //----------------------
 static const iocshArg drvethercatConfigEL6692Arg[] = {
@@ -531,7 +616,7 @@ static void drvethercatConfigEL6692Func( const iocshArgBuf *args )
 
 //----------------------
 //
-// slave-to-slave
+// ecat2sts
 //
 //----------------------
 static const iocshArg drvethercatStSArg[] = {
@@ -557,7 +642,7 @@ static void drvethercatStSFunc( const iocshArgBuf *args )
 
 //----------------------
 //
-// ecatcfgslave
+// ecat2cfgslave
 //
 //----------------------
 
@@ -597,6 +682,52 @@ static void drvethercatcfgslaveFunc( const iocshArgBuf *args )
         args[6].ival
     );
 }
+
+
+//----------------------
+//
+// ecat2slave (genslave)
+//
+//----------------------
+
+
+static const iocshArg drvethercatgenslaveArg[] = {
+		{ "cmd",  				iocshArgString },
+		{ "arg1",  				iocshArgInt },
+		{ "arg2",	  			iocshArgInt },
+		{ "arg3",  				iocshArgInt },
+		{ "arg4",				iocshArgInt },
+		{ "arg5",				iocshArgInt },
+		{ "arg6",				iocshArgInt },
+
+};
+static const iocshArg *const drvethercatgenslaveArgs[] = {
+    &drvethercatgenslaveArg[0],
+    &drvethercatgenslaveArg[1],
+    &drvethercatgenslaveArg[2],
+    &drvethercatgenslaveArg[3],
+    &drvethercatgenslaveArg[4],
+    &drvethercatgenslaveArg[5],
+    &drvethercatgenslaveArg[6],
+};
+
+static const iocshFuncDef drvethercatgenslaveDef =
+    { "ecat2cfgslave", 7, drvethercatgenslaveArgs };
+
+/*
+static void drvethercatgenslaveFunc( const iocshArgBuf *args )
+{
+    genslave(
+        args[0].sval,
+        args[1].ival,
+        args[2].ival,
+        args[3].ival,
+        args[4].ival,
+        args[5].ival,
+        args[6].ival
+    );
+}
+*/
 
 
 
