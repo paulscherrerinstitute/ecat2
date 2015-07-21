@@ -413,9 +413,9 @@ int drvGetValueFloat(
 	epicsMutexMustLock( e->rw_lock );
 
 	if( etype == epicsFloat32T )
-		*fval = *(float *)(e->r_data + offs);
+		*fval = __builtin_bswap32(*(float *)(e->r_data + offs));
 	else
-		*fval = *(double *)(e->r_data + offs);
+		*fval = __builtin_bswap64(*(double *)(e->r_data + offs));
 
 	epicsMutexUnlock( e->rw_lock );
 
@@ -455,9 +455,9 @@ int drvSetValueFloat(
 	epicsMutexMustLock( e->rw_lock );
 
 	if( etype == epicsFloat32T )
-		*(float *)(e->w_data + offs) = *fval;
+		*(float *)(e->w_data + offs) = __builtin_bswap32( *fval );
 	else
-		*(double *)(e->w_data + offs) = *fval;
+		*(double *)(e->w_data + offs) = __builtin_bswap64( *fval );
 
 	memset( e->w_mask + offs, 0xff, etype == epicsFloat32T ? sizeof(float) : sizeof(double) );
 

@@ -83,7 +83,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 {
 	ethcat *e;
 	int ix;
-	RECTYPE retv = dev_get_record_type( prec, &ix );
+	RECTYPE retv;
 	FN_CALLED;
 
 	if( !prec->dpvt )
@@ -99,6 +99,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 		return S_dev_badArgument;
 	}
 
+	retv = dev_get_record_type( prec, &ix );
 	if( retv == REC_ERROR )
 		return S_dev_badArgument;
 
