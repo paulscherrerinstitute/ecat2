@@ -396,7 +396,10 @@ int drvGetValueFloat(
 		double *fval
 )
 {
-
+	float f1, f2;
+	double d1;
+	char *p, *d;
+	int i;
 	FN_CALLED3;
 	if( !e )
 		return ERR_BAD_ARGUMENT;
@@ -413,12 +416,21 @@ int drvGetValueFloat(
 	epicsMutexMustLock( e->rw_lock );
 
 	if( etype == epicsFloat32T )
-		*fval = __builtin_bswap32(*(float *)(e->r_data + offs));
+	{
+		p = (char *)&f1;
+		d = (char *)&f2;
+		f1 = *(float *)(e->r_data + offs );
+		*(d+0) = *(p+3); *(d+1) = *(p+2); *(d+2) = *(p+1); *(d+3) = *(p+0);
+		 *fval = (double)f2;
+ 	}
 	else
-		*fval = __builtin_bswap64(*(double *)(e->r_data + offs));
+	{
+		d1 = *(double *)(e->r_data + offs );
+		for( i = 0; i < sizeof(double); i++ )
+			*((char *)fval + i) = *((char *)&d1 + sizeof(double) - i);
+	}
 
 	epicsMutexUnlock( e->rw_lock );
-
 
     return 0;
 }
@@ -437,6 +449,8 @@ int drvSetValueFloat(
  )
 {
 	int retv = 0;
+	float f1;
+	char *p, *d;
 
 	FN_CALLED;
 
@@ -452,12 +466,25 @@ int drvSetValueFloat(
 	if( byteoffs > 0 )
 		offs += byteoffs;
 
+	printf( "%s: offset=%d, bytes: ", __func__, offs );
+	int i;
 	epicsMutexMustLock( e->rw_lock );
 
+
 	if( etype == epicsFloat32T )
-		*(float *)(e->w_data + offs) = __builtin_bswap32( *fval );
+	{
+		p = (char *)&f1;
+		d = e->w_data + offs;
+		f1 = (float)*fval;
+		*(d+0) = *(p+3); *(d+1) = *(p+2); *(d+2) = *(p+1); *(d+3) = *(p+0);
+ 	}
 	else
-		*(double *)(e->w_data + offs) = __builtin_bswap64( *fval );
+	{
+		p = e->w_data + offs;
+		for( i = 0; i < sizeof(double); i++ )
+			*(p + i) = *((char *)fval + sizeof(double) - i);
+	}
+
 
 	memset( e->w_mask + offs, 0xff, etype == epicsFloat32T ? sizeof(float) : sizeof(double) );
 

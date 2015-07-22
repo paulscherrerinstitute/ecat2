@@ -193,6 +193,7 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 			case REC_MBBI:
 			case REC_LONGIN:
 			case REC_STRINGIN:
+			case REC_AAI:
 							printf( " ---> " );
 							break;
 			case REC_AO:
@@ -200,6 +201,7 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 			case REC_MBBO:
 			case REC_LONGOUT:
 			case REC_STRINGOUT:
+			case REC_AAO:
 							printf( " <--- " );
 							break;
 			default:

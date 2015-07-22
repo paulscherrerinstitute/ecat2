@@ -586,7 +586,6 @@ long dev_rw_ai( aiRecord *record )
 	FN_CALLED;
 
    	CHECK_RECINIT;
-
    	if( priv->dreg_info.typespec == epicsFloat32T ||
    			priv->dreg_info.typespec == epicsFloat64T )
    	{
@@ -796,6 +795,19 @@ long dev_rw_longin( longinRecord *record )
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
     								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
+
+    // apply typespec conversion, if any
+    switch( priv->dreg_info.typespec )
+    {
+		case epicsInt8T:		record->val = (epicsInt8)record->val; break;
+		case epicsUInt8T:       record->val = (epicsUInt8)record->val; break;
+		case epicsInt16T:       record->val = (epicsInt16)record->val; break;
+		case epicsUInt16T:      record->val = (epicsUInt16)record->val; break;
+		case epicsEnum16T:      record->val = (epicsEnum16)record->val; break;
+		case epicsInt32T:       record->val = (epicsInt32)record->val; break;
+		default:
+			break;
+    }
     CHECK_STATUS;
 
     return status;
@@ -817,6 +829,19 @@ long dev_rw_longout( longoutRecord *record )
 
    	CHECK_RECINIT;
   	NO_SYSTEM_RECORD;
+
+    // apply typespec conversion, if any
+    switch( priv->dreg_info.typespec )
+    {
+		case epicsInt8T:		record->val = (epicsInt8)record->val; break;
+		case epicsUInt8T:       record->val = (epicsUInt8)record->val; break;
+		case epicsInt16T:       record->val = (epicsInt16)record->val; break;
+		case epicsUInt16T:      record->val = (epicsUInt16)record->val; break;
+		case epicsEnum16T:      record->val = (epicsEnum16)record->val; break;
+		case epicsInt32T:       record->val = (epicsInt32)record->val; break;
+		default:
+			break;
+    }
 
     status = drvSetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
     								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
