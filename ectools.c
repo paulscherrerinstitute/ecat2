@@ -959,6 +959,8 @@ long sts( char *from, char *to )
 	ethcat *e_from, *e_to;
 	ecnode *pe_from, *pe_to;
 	domain_register dreg_from, dreg_to;
+	system_rec_data srdata = { .sysrectype = SRT_ERROR };
+	FN_CALLED;
 
     if( !from || !to )
     	goto getout;
@@ -968,11 +970,10 @@ long sts( char *from, char *to )
     if( len_from < 2 || len_to < 2 )
     	goto getout;
 
-
-    if( parse_str( from, &e_from, &pe_from, &dreg_nr_from, &dreg_from, NULL ) != OK )
+    if( parse_str( from, &e_from, &pe_from, &dreg_nr_from, &dreg_from, &srdata ) != OK )
         return ERR_BAD_ARGUMENT;
 
-    if( parse_str( to, &e_to, &pe_to, &dreg_nr_to, &dreg_to, NULL ) != OK )
+    if( parse_str( to, &e_to, &pe_to, &dreg_nr_to, &dreg_to, &srdata ) != OK )
         return ERR_BAD_ARGUMENT;
 
 	add_new_sts_entry( e_from->d, pe_from, pe_to, &dreg_from, &dreg_to );
@@ -1231,7 +1232,7 @@ EC_ERR execute_configuration_prg( void )
 	printf( PPREFIX "Executing slave configuration program, %d step(s)\n", cfg_prg_no_of_steps );
 	do
 	{
-		printf( PPREFIX "Step %d from %d: ", ix, cfg_prg_no_of_steps-1 );
+		//printf( PPREFIX "Step %d from %d: ", ix, cfg_prg_no_of_steps-1 );
 		step = cfg_prg + ix;
 		cscmd             = step->cmd;
 		cmd = csc_cmd_str[(int)cscmd];
