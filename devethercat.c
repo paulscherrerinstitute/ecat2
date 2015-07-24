@@ -15,7 +15,6 @@ typedef struct _dev_ethercat_private {
 	ecnode *pe;
 
 	// aai & aao
-	int aa_flag;
 	int ftvl_len;
 	int ftvl_type;
 
@@ -910,43 +909,25 @@ long dev_rw_stringout( stringoutRecord *record )
 
 long dev_rw_aai( aaiRecord *record )
 {
-   	int status = 0;
+   	int status = 0, offs, len;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
-   	epicsUInt32 val;
-    int i, ix, offs, bit, bitlen;
-    char *target;
 
     FN_CALLED;
 
    	CHECK_RECINIT;
   	NO_SYSTEM_RECORD;
 
-  	for( ix = 0, i = priv->dreg_nr; i < priv->e->d->ddata.num_of_regs && i < priv->dreg_nr + record->nelm; i++, ix++ )
-	{
-		offs = priv->e->d->ddata.reginfos[i].byte;
-		bit = priv->e->d->ddata.reginfos[i].bit;
-		bitlen = priv->e->d->ddata.reginfos[i].bit_length;
+	if( !record->bptr )
+		return ERR_PREREQ_FAIL;
+  	offs = priv->dreg_info.offs + (priv->dreg_info.byteoffs >= 0 ? priv->dreg_info.byteoffs : 0);
+  	len = priv->ftvl_len * record->nelm;
 
-    	status = drvGetValue( priv->e, offs, bit, &val, bitlen, -1, 0, -1, -1 );
-      	CHECK_STATUS;
+  	if( offs + len > priv->e->d->ddata.dsize )
+  		return ERR_OUT_OF_RANGE;
 
-      	target = (char *)record->bptr + ix*priv->ftvl_len;
-      	memset( target, 0, priv->ftvl_len );
-		switch( priv->ftvl_len )
-		{
-			case epicsInt8T	  :	*target = (epicsInt8)val; break;
-			case epicsUInt8T  :	*target = (epicsUInt8)val; break;
-			case epicsInt16T  :	*(epicsInt16 *)target = (epicsInt16)val; break;
-			case epicsUInt16T :	*(epicsUInt16 *)target = (epicsUInt16)val; break;
-			case epicsInt32T  :	*(epicsInt32 *)target = (epicsInt32)val; break;
-			case epicsUInt32T : *(epicsUInt32 *)target = (epicsUInt32)val; break;
-			case epicsFloat32T: *(epicsFloat32 *)target = (epicsFloat32)val; break;
-			case epicsFloat64T: *(epicsFloat64 *)target = (epicsFloat64)val; break;
-		}
-	}
+  	drvGetBlock( priv->e, record->bptr, offs, len );
 
 	record->nord = record->nelm;
-
 
     return status;
 }
@@ -961,42 +942,24 @@ long dev_rw_aai( aaiRecord *record )
 
 long dev_rw_aao( aaoRecord *record )
 {
-   	int status = 0;
+   	int status = 0, len, offs;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
-   	ethcat *e = priv->e;
-   	epicsUInt32 val;
-    int i, ix, offs, bit, bitlen;
-    char *target;
 
     FN_CALLED;
 
    	CHECK_RECINIT;
   	NO_SYSTEM_RECORD;
 
-	for( ix = 0, i = priv->dreg_nr; i < e->d->ddata.num_of_regs && i < priv->dreg_nr + record->nelm; i++, ix++ )
-	{
-		offs = e->d->ddata.reginfos[i].byte;
-		bit = e->d->ddata.reginfos[i].bit;
-		bitlen = e->d->ddata.reginfos[i].bit_length;
+  	if( !record->bptr )
+		return ERR_PREREQ_FAIL;
 
-      	target = (char *)record->bptr + ix*priv->ftvl_len;
-      	memset( target, 0, priv->ftvl_len );
-		switch( priv->ftvl_len )
-		{
-			case epicsInt8T	  :	val = *(epicsUInt8 *)target; break;
-			case epicsUInt8T  :	val = *(epicsUInt8 *)target; break;
-			case epicsInt16T  :	val = *(epicsInt16 *)target; break;
-			case epicsUInt16T :	val = *(epicsUInt16 *)target; break;
-			case epicsInt32T  :	val = *(epicsInt32 *)target; break;
-			case epicsUInt32T : val = *(epicsUInt32 *)target; break;
-			case epicsFloat32T: val = *(epicsFloat32 *)target; break;
-			case epicsFloat64T: val = *(epicsFloat64 *)target; break;
-		}
+  	offs = priv->dreg_info.offs + (priv->dreg_info.byteoffs >= 0 ? priv->dreg_info.byteoffs : 0);
+  	len = priv->ftvl_len * record->nelm;
 
-		status = drvSetValue( priv->e, offs, bit, &val, bitlen, -1, -1, -1 );
-      	CHECK_STATUS;
+  	if( offs + len > priv->e->d->ddata.dsize )
+  		return ERR_OUT_OF_RANGE;
 
-	}
+  	drvSetBlock( priv->e, record->bptr, offs, len );
 
 	record->nord = record->nelm;
 
@@ -1055,6 +1018,8 @@ static void add_record( int ix, devethercat_private *priv, dbCommon *record )
     (*cr)->rec = record;
 	(*cr)->dreg_info = &priv->dreg_info;
 
+	(*cr)->ftvl_len = priv->ftvl_len;
+	(*cr)->ftvl_type = priv->ftvl_type;
 }
 
 
@@ -1087,14 +1052,26 @@ static int get_ftvl_len( dbCommon* record, int ftvl )
 
 static int init_aa( devethercat_private *priv, aaiRecord *record, RECTYPE rectype, DBLINK *reclink )
 {
+	record->bptr = NULL;
 	// sets dtype and dlen
 	if( get_ftvl_len( (dbCommon*)record, record->ftvl ) != OK )
 		return NOTOK;
-	if( (record->nord = record->nelm) < 1 ||
-			priv->dreg_nr + record->nelm > priv->e->d->ddata.num_of_regs
-			)
+	if( (record->nord = record->nelm) < 1 )
 	{
-		errlogSevPrintf( errlogFatal, "%s %s: Number of elements %d is invalid\n", __func__, record->name, record->nelm );
+		errlogSevPrintf( errlogFatal, "%s %s: Zero or negative number of elements is invalid\n", __func__, record->name );
+	    return NOTOK;
+	}
+
+	if( priv->dreg_info.offs + (priv->dreg_info.byteoffs >= 0 ? priv->dreg_info.byteoffs : 0) + priv->ftvl_len*record->nelm >
+								priv->e->d->ddata.dsize )
+
+	{
+		errlogSevPrintf( errlogFatal, "%s %s: Number of elements %d is invalid (%d + %d > %d)\n", __func__,
+					record->name, record->nelm,
+					priv->dreg_info.offs + (priv->dreg_info.byteoffs >= 0 ? priv->dreg_info.byteoffs : 0),
+					priv->ftvl_len*record->nelm,
+					priv->e->d->ddata.dsize
+					);
 	    return NOTOK;
 	}
 

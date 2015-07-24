@@ -23,6 +23,13 @@ int drvGetBlock(
 		int offs,
 		int len
 );
+int drvSetBlock(
+		ethcat *e,
+		char *buf,
+		int offs,
+		int len
+);
+
 //---------------------------------
 
 

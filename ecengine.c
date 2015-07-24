@@ -108,6 +108,7 @@ int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
 				else
 					*val = endian_uint32( *(epicsUInt32 *)(rw + offs) );
 				break;
+
 		default:
 				get_speclen_counter++;
 				break;
@@ -530,6 +531,41 @@ int drvGetBlock(
 	return ERR_NO_ERROR;
 }
 
+
+
+int drvSetBlock(
+		ethcat *e,
+		char *buf,
+		int offs,
+		int len
+)
+{
+	FN_CALLED3;
+
+	if( !e )
+		return ERR_BAD_ARGUMENT;
+
+	if( !buf )
+		return ERR_BAD_ARGUMENT_1;
+
+	if( len < 1 )
+		return ERR_BAD_ARGUMENT_2;
+
+	if( offs + len > e->d->ddata.dsize )
+		return ERR_BAD_ARGUMENT_3;
+
+	if( !e->w_data )
+		return ERR_PREREQ_FAIL;
+
+	epicsMutexMustLock( e->rw_lock );
+
+	memcpy( e->w_data + offs, buf, len );
+	memset( e->w_mask + offs, 0xff, len );
+
+	epicsMutexUnlock( e->rw_lock );
+
+	return ERR_NO_ERROR;
+}
 
 
 

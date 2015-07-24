@@ -131,7 +131,6 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 {
 	epicsUInt32 val;
 	char sbuf[128] = { 0 }, sval[40+1], oval[40+1];
-
 	if( rectype == REC_MBBI || rectype == REC_MBBO )
 	{
 	    drvGetValueMasked( e, byte, bit, &val, bitlen, nobt, shift, mask, byteoffs, bytelen );
@@ -151,7 +150,6 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 		bitlen = 1;
 
 
-
 	switch( bitlen )
 	{
 		case 1:  sprintf( sbuf, "%d", (bitspec > -1 ? val >> bitspec : val) & 0x00000001 ); break;
@@ -164,7 +162,7 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 			sprintf( sbuf, "0x%02x", (val & ((1 << bitlen) - 1) << bit) >> bit );
 			break;
 	}
-	printf( " = %s", sbuf );
+	printf( "%s", sbuf );
 }
 #endif
 
@@ -259,12 +257,32 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 				);
 
 #if PRINT_RECVAL
-		if( (*cr)->rectype == REC_STRINGIN || (*cr)->rectype == REC_STRINGOUT )
-			sio = 1;
-		ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs, (*cr)->dreg_info->bit, (*cr)->dreg_info->bitlen,
+		printf( " = " );
+		if( (*cr)->rectype == REC_AAI || (*cr)->rectype == REC_AAO )
+		{
+			printf( "{ " );
+			int i;
+			for( i = 0; i < ((aaiRecord *)((*cr)->rec))->nelm; i++ )
+			{
+				ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs + i*(*cr)->ftvl_len, (*cr)->dreg_info->bit,
+							(*cr)->ftvl_len * 8,
+							-1, -1, -1, -1,	0,
+							(*cr)->dreg_info->byteoffs, -1 );
+				if( i != ((aaiRecord *)((*cr)->rec))->nelm - 1 )
+					printf( ", " );
+			}
+			printf( " }" );
+		}
+		else
+		{
+			if( (*cr)->rectype == REC_STRINGIN || (*cr)->rectype == REC_STRINGOUT )
+				sio = 1;
+			ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs, (*cr)->dreg_info->bit, (*cr)->dreg_info->bitlen,
 							(*cr)->dreg_info->bitspec, (*cr)->dreg_info->nobt, (*cr)->dreg_info->shft, (*cr)->dreg_info->mask,
 							sio,
 							(*cr)->dreg_info->byteoffs, (*cr)->dreg_info->bytelen );
+		}
+
 #endif
 
 		if( (*cr)->next )

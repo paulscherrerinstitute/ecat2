@@ -147,7 +147,7 @@ int drvGetRegisterDesc( ethcat *e, domain_register *dreg, int regnr, ecnode **pe
 
 	dreg->offs = d->ddata.reginfos[regnr].byte;
 	dreg->bit = d->ddata.reginfos[regnr].bit;
-	dreg->bitlen = d->ddata.reginfos[regnr].bit_length;
+	dreg->bitlen = (token_num[T_NUM] < 0 ? d->ddata.reginfos[regnr].bit_length : 8*parse_datatype_get_len( token_num[T_NUM] ) );
 	dreg->bitspec = token_num[B_NUM];
 	dreg->byteoffs = token_num[O_NUM];
 	dreg->bytelen = token_num[L_NUM];
@@ -220,7 +220,7 @@ int drvGetLocalRegisterDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecn
 	*dreg_nr = i;
 	dreg->offs = d->ddata.reginfos[i].byte;
 	dreg->bit = d->ddata.reginfos[i].bit;
-	dreg->bitlen = d->ddata.reginfos[i].bit_length;
+	dreg->bitlen = (token_num[T_NUM] < 0 ? d->ddata.reginfos[i].bit_length : 8*parse_datatype_get_len( token_num[T_NUM] ) );
 	dreg->bitspec = token_num[B_NUM];
 	dreg->byteoffs = token_num[O_NUM];
 	dreg->bytelen = token_num[L_NUM];
@@ -288,13 +288,15 @@ int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pe
 			*dreg_nr = i;
 			dreg->offs = d->ddata.reginfos[i].byte;
 			dreg->bit = d->ddata.reginfos[i].bit;
-			dreg->bitlen = d->ddata.reginfos[i].bit_length;
+			dreg->bitlen = (token_num[T_NUM] < 0 ? d->ddata.reginfos[i].bit_length : 8*parse_datatype_get_len( token_num[T_NUM] ) );
 			dreg->bitspec = token_num[B_NUM];
 			dreg->byteoffs = token_num[O_NUM];
 			dreg->bytelen = token_num[L_NUM];
 			dreg->typespec = token_num[T_NUM];
+
 			return OK;
 		}
+
 
 	errlogSevPrintf( errlogFatal, "%s: Internal error - PDO entry s%d.sm%d.p%d.e%d registered in domain %d, but not in reg list\n",
 												__func__, token_num[S_NUM], token_num[SM_NUM], token_num[P_NUM], token_num[E_NUM], pe->domain_entry->de_domain->nr );

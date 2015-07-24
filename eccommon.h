@@ -123,6 +123,9 @@ typedef struct _conn_rec {
 	RECTYPE rectype;
 	dbCommon *rec;
 	domain_register *dreg_info;
+	// aai & aao
+	int ftvl_len;
+	int ftvl_type;
 } conn_rec;
 
 
@@ -290,6 +293,7 @@ typedef enum {
 	ERR_DOES_NOT_EXIST		= 0x102,
 	ERR_ALREADY_EXISTS 		= 0x103,
 	ERR_PREREQ_FAIL 		= 0x104,
+	ERR_OUT_OF_RANGE        = 0x105,
 
 	ERR_BAD_ARGUMENT 		= 0x1a0,
 	ERR_BAD_ARGUMENT_1 		= 0x1a1,
