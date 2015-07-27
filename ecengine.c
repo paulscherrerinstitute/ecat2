@@ -173,9 +173,11 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
 		case 16:
 				if( bitspec >= 0 )
 				{
-					*(epicsUInt16 *)(e->w_data + offs) &= ~(1 << bitspec);
-					*(epicsUInt16 *)(e->w_data + offs) |= ((endian_uint16(*val) & 0x0001) << bitspec);
-					*(epicsUInt16 *)(e->w_mask + offs) |= (1 << bitspec);
+					if( *val & 0x0001 )
+						*(epicsUInt16 *)(e->w_data + offs) |= endian_uint16((*val & 0x0001) << bitspec);
+					else
+						*(epicsUInt16 *)(e->w_data + offs) &= ~endian_uint16(1 << bitspec);
+					*(epicsUInt16 *)(e->w_mask + offs) |= endian_uint16(1 << bitspec);
 				}
 				else
 				{
@@ -186,9 +188,11 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
 		case 32:
 				if( bitspec >= 0 )
 				{
-					*(epicsUInt32 *)(e->w_data + offs) &= ~(1 << bitspec);
-					*(epicsUInt32 *)(e->w_data + offs) |= ((endian_uint32(*val) & 0x00000001) << bitspec);
-					*(epicsUInt32 *)(e->w_mask + offs) |= (1 << bitspec);
+					if( *val & 0x00000001 )
+						*(epicsUInt32 *)(e->w_data + offs) |= endian_uint32((*val & 0x00000001) << bitspec);
+					else
+						*(epicsUInt32 *)(e->w_data + offs) &= ~endian_uint32(1 << bitspec);
+					*(epicsUInt32 *)(e->w_mask + offs) |= endian_uint32(1 << bitspec);
 				}
 				else
 				{
