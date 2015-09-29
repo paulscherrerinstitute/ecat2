@@ -2,7 +2,8 @@ include /ioc/tools/driver.makefile
 PROJECT=ecat2
 BUILDCLASSES += Linux
 EXCLUDE_VERSIONS = 3.13 3.14.8
-EXCLUDE_ARCHS = "ppc4xx SL5 SL6 eldk42 eldk51 T2 T202 rt xenomai mvl40-xscale_be V63 V67 ppc603 ppc604"
+#EXCLUDE_ARCHS = "ppc4xx SL5 SL6 eldk42 eldk51 T2 T202 rt xenomai mvl40-xscale_be V63 V67 ppc603 ppc604"
+ARCH_FILTER = eldk52-e500v2
 
 USR_CFLAGS += -I/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/
 
