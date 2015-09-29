@@ -540,32 +540,40 @@ int dev_parse_io_string( devethercat_private *priv, dbCommon *record, RECTYPE re
 						);
 }
 
-
-#define CHECK_RECINIT                                                                                      \
+#define MAX_INIT_FAILED_MSG	5
+#define CHECK_RECINIT \
+static int __init1_failed = 0; \
+static int __init2_failed = 0; \
 if( !priv )                                                                                                \
 {                                                                                                          \
     recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                     \
-    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (1)\n", __func__, record->name );    \
+    if( __init1_failed++ < MAX_INIT_FAILED_MSG ) \
+    	errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (1), message repeated: %d of %d times\n", \
+    			__func__, record->name, __init1_failed, MAX_INIT_FAILED_MSG );    \
     return -1;                                                                                             \
 }\
 if( !priv->e )                                                                                                \
 {                                                                                                          \
     recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                     \
-    errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2)\n", __func__, record->name );    \
+    if( __init2_failed < MAX_INIT_FAILED_MSG ) \
+    	errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2), message repeated: %d of %d times\n", \
+    			__func__, record->name, __init2_failed, MAX_INIT_FAILED_MSG );    \
     return -1;                                                                                             \
 }
 
 #define CHECK_STATUS                                                                                                 \
 if( status )                                                                                                         \
 {                                                                                                                    \
-    errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
+    if( __init1_failed < MAX_INIT_FAILED_MSG ) \
+	    errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
     recGblSetSevr(record, READ_ALARM, INVALID_ALARM );                                                               \
 }                                                                                                                    \
 
 #define NO_SYSTEM_RECORD																						\
 if( priv->sysrecdata.system )																					\
 {                                                                                                               \
-	errlogSevPrintf( errlogFatal, "%s: record %s cannot be used as system record\n", __func__, record->name );  \
+    if( __init1_failed++ < MAX_INIT_FAILED_MSG ) \
+		errlogSevPrintf( errlogFatal, "%s: record %s cannot be used as system record\n", __func__, record->name );  \
     recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                          \
 	return -1;                                                                                                  \
 }
