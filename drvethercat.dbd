@@ -6,18 +6,18 @@
 driver(drvecat2)
 
 
-device( ai,         CONSTANT, devethercatai,      "ecat2" )
-device( ao,         CONSTANT, devethercatao,      "ecat2" )
-device( bi,         CONSTANT, devethercatbi,      "ecat2" )
-device( bo,         CONSTANT, devethercatbo,      "ecat2" )
-device( mbbi,       CONSTANT, devethercatmbbi,    "ecat2" )
-device( mbbo,       CONSTANT, devethercatmbbo,    "ecat2" )
-device( longin,     CONSTANT, devethercatlongin,  "ecat2" )
-device( longout,    CONSTANT, devethercatlongout, "ecat2" )
-device( stringin,   CONSTANT, devethercatstringin,  "ecat2" )
-device( stringout,  CONSTANT, devethercatstringout, "ecat2" )
-device( aai,        CONSTANT, devethercataai,      "ecat2" )
-device( aao,        CONSTANT, devethercataao,      "ecat2" )
+device( ai,         INST_IO, devethercatai,      "ecat2" )
+device( ao,         INST_IO, devethercatao,      "ecat2" )
+device( bi,         INST_IO, devethercatbi,      "ecat2" )
+device( bo,         INST_IO, devethercatbo,      "ecat2" )
+device( mbbi,       INST_IO, devethercatmbbi,    "ecat2" )
+device( mbbo,       INST_IO, devethercatmbbo,    "ecat2" )
+device( longin,     INST_IO, devethercatlongin,  "ecat2" )
+device( longout,    INST_IO, devethercatlongout, "ecat2" )
+device( stringin,   INST_IO, devethercatstringin,  "ecat2" )
+device( stringout,  INST_IO, devethercatstringout, "ecat2" )
+device( aai,        INST_IO, devethercataai,      "ecat2" )
+device( aao,        INST_IO, devethercataao,      "ecat2" )
 
 
 

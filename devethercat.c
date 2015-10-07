@@ -321,12 +321,11 @@ static int parse_datatype_get_type( char *token, char **name )
 
 int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *dreg, system_rec_data *srdata  )
 {
-	char iotext[128], *tail, *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " .\t";
+	char *iotext = strdupa(s), *tail, *tokens[EPT_MAX_TOKENS] = { NULL }, *delims = " .\t@";
 	int i, ix, found = 0, ntokens, retv = NOTOK, num, token_num[EPT_MAX_TOKENS];
 
 
 	FN_CALLED;
-	strcpy( iotext, s );
 
 	if( !(ntokens = dev_tokenize( iotext, delims, tokens )) )
 	{
@@ -557,7 +556,7 @@ if( !priv->e )                                                                  
     recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                     \
     if( __init2_failed < MAX_INIT_FAILED_MSG ) \
     	errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2), message repeated: %d of %d times\n", \
-    			__func__, record->name, __init2_failed, MAX_INIT_FAILED_MSG );    \
+    		 	__func__, record->name, __init2_failed, MAX_INIT_FAILED_MSG );    \
     return -1;                                                                                             \
 }
 
