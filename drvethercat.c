@@ -342,6 +342,12 @@ long drvethercatConfigure(
 
 	FN_CALLED;
 
+	printf( "/----------------------------------------------\\\n" );
+    printf( "|                                              |\n" );
+    printf( "|  PSI EtherCAT EPICS driver (ecat2) v2.0.6    |\n" );
+    printf( "|                                              |\n" );
+	printf( "\\----------------------------------------------/\n" );
+
     // check arguments
     if( domain_nr < 0 ||
     	freq < 0.001 || freq > 13000.0 ||
@@ -355,7 +361,7 @@ long drvethercatConfigure(
         printf( " domain_nr       Number of the corresponding EtherCAT domain\n");
         printf( " frequency       EtherCAT frequency in Hz\n");
         printf( " autoconfig      Should driver autoconfigure the domain?\n");
-        printf( " autostart       Number of the corresponding EtherCAT domain\n");
+        printf( " autostart       Should domain packet exchange be automatically started?\n");
         printf( " \nExample:\n");
         printf( " drvethercatConfigure 0, 200, 1, 1\n");
         printf( "----------------------------------------------------------------------------------\n" );

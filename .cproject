@@ -21,7 +21,7 @@
 							<builder id="org.eclipse.cdt.build.core.settings.default.builder.1758490247" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="org.eclipse.cdt.build.core.settings.default.builder"/>
 							<tool id="org.eclipse.cdt.build.core.settings.holder.libs.1588168585" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
 							<tool id="org.eclipse.cdt.build.core.settings.holder.1754979885" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.4063499" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.4063499" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/work/iocBoot/R3.14.12/include/"/>
 									<listOptionValue builtIn="false" value="/opt/eldk-5.2/kernel/gfa-linux-3.6.11.5-rt37/include/"/>
 									<listOptionValue builtIn="false" value="/afs/psi.ch/user/z/zimoch/top/asyn4-21/include"/>
@@ -38,7 +38,7 @@
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1910742026" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
 							<tool id="org.eclipse.cdt.build.core.settings.holder.735703380" name="GNU C++" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1189396984" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.1189396984" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/work/iocBoot/R3.14.12/include/"/>
 									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/"/>
 									<listOptionValue builtIn="false" value="/afs/psi.ch/user/z/zimoch/top/asyn4-21/include"/>
@@ -55,7 +55,7 @@
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.724513355" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
 							<tool id="org.eclipse.cdt.build.core.settings.holder.494434046" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
-								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.2085013420" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+								<option id="org.eclipse.cdt.build.core.settings.holder.incpaths.2085013420" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
 									<listOptionValue builtIn="false" value="/work/iocBoot/R3.14.12/include/"/>
 									<listOptionValue builtIn="false" value="/opt/eldk-5.2/powerpc-e500v2/sysroots/ppce500v2-linux-gnuspe/usr/include/"/>
 									<listOptionValue builtIn="false" value="/afs/psi.ch/user/z/zimoch/top/asyn4-21/include"/>

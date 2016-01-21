@@ -68,7 +68,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 	printf( "%8s", sbuf );
 
 
-	drvGetValue( e, byte, bit, &val, len, -1, 0, -1, -1 );
+	drvGetValue( e, byte, bit, &val, len, -1, -1, -1 );
 
 	switch( len )
 	{
@@ -144,7 +144,7 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 	    return;
 	}
 	else
-		drvGetValue( e, byte, bit, &val, bitlen, bitspec, 0, byteoffs, bytelen );
+		drvGetValue( e, byte, bit, &val, bitlen, bitspec, byteoffs, bytelen );
 
 	if( bitspec > -1 )
 		bitlen = 1;
@@ -324,7 +324,7 @@ static void ect_print_val_sts( ethcat *e, ecnode *d, domain_register *ft )
 
 	int bitlen = ft->bitlen;
 
-	drvGetValue( e, ft->offs, ft->bit, &val, ft->bitlen, ft->bitspec, 0, ft->byteoffs, ft->bytelen );
+	drvGetValue( e, ft->offs, ft->bit, &val, ft->bitlen, ft->bitspec, ft->byteoffs, ft->bytelen );
 
 	if( ft->bitspec > -1 )
 		bitlen = 1;

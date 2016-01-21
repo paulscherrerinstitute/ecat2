@@ -44,7 +44,7 @@ int drvGetLocalRegisterDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecn
 int drvGetEntryDesc( ethcat *e, domain_register *dreg, int *dreg_nr, ecnode **pentry, int *token_num );
 int drvDomainExists( int mnr, int dnr );
 
-int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int wrval, int byteoffs, int bytelen );
+int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int byteoffs, int bytelen );
 int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitlen, int bitspec, int byteoffs, int bytelen );
 
 int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, epicsInt16 nobt, epicsUInt16 shift, epicsUInt32 mask, int byteoffs, int bytelen );
@@ -60,7 +60,6 @@ int drvGetValueFloat(
 		epicsUInt32 *val,
 		int bitlen,
 		int bitspec,
-		int wrval,
 		int byteoffs,
 		int bytelen,
 		epicsType etype,

@@ -1,12 +1,6 @@
 
 #include "ec.h"
 
-
-
-
-
-
-
 static epicsUInt16 endian_uint16( epicsUInt16 val )
 {
 	epicsUInt16 retv = 0;
@@ -57,10 +51,10 @@ EC_ERR drvGetSysRecData( ethcat *e, system_rec_data *sysrecdata, dbCommon *recor
 	return 0;
 }
 
-int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int wrval, int byteoffs, int bytelen )
+int drvGetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int bitspec, int byteoffs, int bytelen )
 {
 	static long get_speclen_counter = 0;
-	char *rw = wrval ? e->w_data : e->r_data;
+	char *rw = e->r_data;
 
 	FN_CALLED3;
 	if( !e || !val )
@@ -247,7 +241,6 @@ int drvGetValueMasked( ethcat *e, int offs, int bit, epicsUInt32 *rval, int bitl
 			*rval, endian_uint32( *rval ), *(epicsUInt32 *)(e->w_data + offs), endian_uint32(*(epicsUInt32 *)(e->w_data + offs)), offs, bit, bitlen, mask );
 #endif
 	*rval = (endian_uint32(*(epicsUInt32 *)(e->r_data + offs)) & mask);
-	*(epicsUInt32 *)(e->w_mask + offs) |= mask;
 
 #if SHOW_SET_DEBUG
 	printf( "%s:get  after: *val=0x%08x, ec*val= 0x%08x, wdata=0x%08x ecwdata=0x%08x (offs.bit:%d.%d, bitlen %d), mask=0x%08x\n", __func__,
@@ -394,7 +387,6 @@ int drvGetValueFloat(
 		epicsUInt32 *val,
 		int bitlen,
 		int bitspec,
-		int wrval,
 		int byteoffs,
 		int bytelen,
 		epicsType etype,
@@ -453,7 +445,7 @@ int drvSetValueFloat(
 		double *fval
  )
 {
-	int retv = 0;
+	int i, retv = 0;
 	float f1;
 	char *p, *d;
 
@@ -471,8 +463,6 @@ int drvSetValueFloat(
 	if( byteoffs > 0 )
 		offs += byteoffs;
 
-	printf( "%s: offset=%d, bytes: ", __func__, offs );
-	int i;
 	epicsMutexMustLock( e->rw_lock );
 
 
@@ -744,7 +734,7 @@ thread_out:
 							config_sinfo->product_code 		== current_sinfo.product_code 	&&
 							config_sinfo->revision_number 	== current_sinfo.revision_number &&
 							config_sinfo->serial_number 	== current_sinfo.serial_number 	&&
-							current_sinfo.al_state & S_OP
+							(current_sinfo.al_state & S_OP)
 						)
 							setto = 1;
 				}

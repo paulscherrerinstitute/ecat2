@@ -450,7 +450,6 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 	if( token_num[T_NUM] > -1 )
 		token_num[L_NUM] = -1;
 
-
     *e = ethercatOpen( token_num[D_NUM] );
     if( *e == NULL )
     {
@@ -474,6 +473,7 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 													__func__, iotext, token_num[S_NUM], token_num[LR_NUM] );
 			return ERR_BAD_ARGUMENT;
 		}
+    	retv = OK;
 	}
     else if( token_num[R_NUM] >= 0 )
     {
@@ -566,7 +566,10 @@ if( status )                                                                    
     if( __init1_failed < MAX_INIT_FAILED_MSG ) \
 	    errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
     recGblSetSevr(record, READ_ALARM, INVALID_ALARM );                                                               \
-}                                                                                                                    \
+}       \
+else    \
+	record->udf = 0; \
+	\
 
 #define NO_SYSTEM_RECORD																						\
 if( priv->sysrecdata.system )																					\
@@ -597,17 +600,15 @@ long dev_rw_ai( aiRecord *record )
    	{
    	    status = drvGetValueFloat( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
 									priv->dreg_info.bitlen, priv->dreg_info.bitspec,
-									0,
 									priv->dreg_info.byteoffs, priv->dreg_info.bytelen,
 									priv->dreg_info.typespec, (double*)(&record->val) );
    	    if( !status )
-   	    	return 2;
+   	    	return 2; // Jedi trick: tell EPICS not to perform conversion
    	}
    	else
 	    status = drvGetValue( priv->e, priv->dreg_info.offs,
 	    							priv->dreg_info.bit, (epicsUInt32 *)&(record->rval),
     								priv->dreg_info.bitlen, priv->dreg_info.bitspec,
-    								0,
     								priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
@@ -706,7 +707,7 @@ long dev_rw_bi( biRecord *record )
    		status = drvGetSysRecData( priv->e, &priv->sysrecdata, (dbCommon *)record, &record->rval );
 	else
     	status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit, &record->rval,
-    													priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
+    													priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
     CHECK_STATUS;
 
     return status;
@@ -800,7 +801,7 @@ long dev_rw_longin( longinRecord *record )
   	NO_SYSTEM_RECORD;
 
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
-    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, 0, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
+    								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
 
     // apply typespec conversion, if any
     switch( priv->dreg_info.typespec )
@@ -916,7 +917,7 @@ long dev_rw_stringout( stringoutRecord *record )
 
 long dev_rw_aai( aaiRecord *record )
 {
-   	int status = 0, offs, len;
+   	int offs, len;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
 
     FN_CALLED;
@@ -936,7 +937,9 @@ long dev_rw_aai( aaiRecord *record )
 
 	record->nord = record->nelm;
 
-    return status;
+	record->udf = 0;
+
+    return 0;
 }
 
 
@@ -949,7 +952,7 @@ long dev_rw_aai( aaiRecord *record )
 
 long dev_rw_aao( aaoRecord *record )
 {
-   	int status = 0, len, offs;
+   	int len, offs;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
 
     FN_CALLED;
@@ -970,8 +973,9 @@ long dev_rw_aao( aaoRecord *record )
 
 	record->nord = record->nelm;
 
+	record->udf = 0;
 
-    return status;
+    return 0;
 }
 
 
