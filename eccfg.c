@@ -405,6 +405,8 @@ ecnode *add_domain( ecnode *m, int rate )
     if( ecrt_master_activate( m->mdata.master ) )
 		perrret( "Master %d activation failed\n", m->nr );
 
+//    st_start( 0 );
+
 #ifndef DOMAIN_EXT_MEM
 	d->ddata.dmem = (char *)ecrt_domain_data( d->domain_t );
 #endif

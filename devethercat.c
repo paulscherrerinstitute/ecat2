@@ -554,7 +554,7 @@ if( !priv )                                                                     
 if( !priv->e )                                                                                                \
 {                                                                                                          \
     recGblSetSevr( record, UDF_ALARM, INVALID_ALARM );                                                     \
-    if( __init2_failed < MAX_INIT_FAILED_MSG ) \
+    if( __init2_failed++ < MAX_INIT_FAILED_MSG ) \
     	errlogSevPrintf(errlogFatal, "%s %s: record not initialized correctly (2), message repeated: %d of %d times\n", \
     		 	__func__, record->name, __init2_failed, MAX_INIT_FAILED_MSG );    \
     return -1;                                                                                             \
@@ -563,7 +563,7 @@ if( !priv->e )                                                                  
 #define CHECK_STATUS                                                                                                 \
 if( status )                                                                                                         \
 {                                                                                                                    \
-    if( __init1_failed < MAX_INIT_FAILED_MSG ) \
+    if( __init1_failed++ < MAX_INIT_FAILED_MSG ) \
 	    errlogSevPrintf(errlogFatal, "%s failed for record %s: error code 0x%x\n", __func__, record->name, status );     \
     recGblSetSevr(record, READ_ALARM, INVALID_ALARM );                                                               \
 }       \
@@ -1139,7 +1139,7 @@ long dev_init_record(
     {
     	case REC_AI:
     					PARSE_IO_STR( ai, inp );
-						dev_special_linconv_ai( (aiRecord *)record, 1 );
+    					dev_special_linconv_ai( (aiRecord *)record, 1 );
 						break;
 
     	case REC_AO:

@@ -83,6 +83,9 @@ enum dmmDBG {
 
 
 //---------------------------------
+void st_start( int no );
+void st_end( int no );
+void st_print( int no );
 
 #endif
 

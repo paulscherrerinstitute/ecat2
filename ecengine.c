@@ -893,7 +893,12 @@ void ec_worker_thread( void *data )
 	dnr = ec->d->nr;
 
 	ec->d->ddata.is_running = 1;
-
+#if 0
+	st_end( 0 );
+	printf( "\n\n" );
+	st_print( 0 );
+	printf( "\n\n" );
+#endif
 	//----------------------
 	while( 1 )
 	{

@@ -344,7 +344,7 @@ long drvethercatConfigure(
 
 	printf( "/----------------------------------------------\\\n" );
     printf( "|                                              |\n" );
-    printf( "|  PSI EtherCAT EPICS driver (ecat2) v2.0.6    |\n" );
+    printf( "|  PSI EtherCAT EPICS driver (ecat2) v2.0.7    |\n" );
     printf( "|                                              |\n" );
 	printf( "\\----------------------------------------------/\n" );
 

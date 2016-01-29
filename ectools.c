@@ -1674,5 +1674,65 @@ EC_ERR genslave_prepare_cmds( void )
 }
 
 
+#define NSEC_PER_SEC	1000000000L
+struct timespec t_sub(struct timespec a, struct timespec b)
+{
+    struct timespec result;
+    result.tv_nsec = a.tv_nsec - b.tv_nsec;
+    result.tv_sec  = a.tv_sec  - b.tv_sec;
+    while(result.tv_nsec < 0)
+    {
+        result.tv_nsec += NSEC_PER_SEC;
+        result.tv_sec  -= 1;
+    }
+    return result;
+}
+
+#define MAX_STIMERS	10
+static struct timespec __tstart[MAX_STIMERS] = { { 0, 0 } },
+					__tend[MAX_STIMERS] = { { 0, 0 } },
+					__tdelta[MAX_STIMERS] = { { 0, 0 } };
+
+
+void st_start( int no )
+{
+	assert( no >= 0 && no < MAX_STIMERS );
+	clock_gettime( CLOCK_MONOTONIC, &__tstart[no] );
+}
+
+void st_end( int no )
+{
+	assert( no >= 0 && no < MAX_STIMERS );
+	clock_gettime( CLOCK_MONOTONIC, &__tend[no] );
+	__tdelta[no] = t_sub( __tend[no], __tstart[no] );
+}
+
+void st_print( int no )
+{
+	assert( no >= 0 && no < MAX_STIMERS );
+
+	printf( "st[%d]: %ld.%09ld", no, __tdelta[no].tv_sec, __tdelta[no].tv_nsec );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
