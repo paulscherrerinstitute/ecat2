@@ -603,7 +603,10 @@ long dev_rw_ai( aiRecord *record )
 									priv->dreg_info.byteoffs, priv->dreg_info.bytelen,
 									priv->dreg_info.typespec, (double*)(&record->val) );
    	    if( !status )
-   	    	return 2; // Jedi trick: tell EPICS not to perform conversion
+   	    {
+   	    	record->udf = 0;
+   	    	return 2; // Jedi mind trick: tell EPICS not to perform conversion
+   	    }
    	}
    	else
 	    status = drvGetValue( priv->e, priv->dreg_info.offs,
