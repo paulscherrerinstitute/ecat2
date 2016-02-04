@@ -79,7 +79,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 		default:
 			if( len < 1 || len > 7 )
 				break;
-			sprintf( sbuf, "0x%02x", (val & ((1 << len) - 1) << bit) >> bit );
+			sprintf( sbuf, "0x%02x", (val & ((1 << len) - 1) << bit) >> bit);
 			break;
 	}
 	printf( "%-10s", sbuf );
@@ -255,10 +255,9 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 				(*cr)->rec->name
 				);
 
-#if PRINT_RECVAL
-		printf( " = " );
 		if( (*cr)->rectype == REC_AAI || (*cr)->rectype == REC_AAO )
 		{
+			printf( " = " );
 			printf( "{ " );
 			int i;
 			for( i = 0; i < ((aaiRecord *)((*cr)->rec))->nelm; i++ )
@@ -272,8 +271,10 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 			}
 			printf( " }" );
 		}
+#if PRINT_RECVAL
 		else
 		{
+			printf( " = " );
 			if( (*cr)->rectype == REC_STRINGIN || (*cr)->rectype == REC_STRINGOUT )
 				sio = 1;
 			ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs, (*cr)->dreg_info->bit, (*cr)->dreg_info->bitlen,
@@ -281,8 +282,8 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 							sio,
 							(*cr)->dreg_info->byteoffs, (*cr)->dreg_info->bytelen );
 		}
-
 #endif
+
 
 		if( (*cr)->next )
 			printf( "\n" );
@@ -427,6 +428,39 @@ int ect_print_d_entry_values_sts( int dnr )
 }
 
 
+int ect_print_d_entry_values_recsts( int dnr )
+{
+	int i, retv;
+	ecnode *d = ecn_get_domain_nr( 0, dnr );
+	ethcat *e = drvFindDomain( dnr );
+
+	if( !d || !e )
+	{
+		errlogSevPrintf( errlogFatal, "%s: domain %d does not exist\n", __func__, dnr );
+		return ERR_BAD_REQUEST;
+	}
+
+	for( i = 0; i < d->ddata.num_of_regs; i++ )
+	{
+		ect_print_d_entry_value( e, dnr, &d->ddata.reginfos[i], 1 );
+		ect_print_d_entry_value_rec( e, &d->ddata.reginfos[i] );
+		retv = ect_print_d_entry_value_sts( e, &d->ddata.reginfos[i] );
+		if( !retv )
+			printf( "\n" );
+//		printf( "\n" );
+	}
+
+	printf( "\n" );
+
+	return OK;
+}
+
+
+int parse_dmap_cmd( int *)
+{
+}
+
+
 long dmap( char *cmd )
 {
     if( cmd )
@@ -434,16 +468,27 @@ long dmap( char *cmd )
     	if( strlen(cmd) )
     	{
 
-    		if( !strcmp( cmd, "rec" ) )
+    		if( !strcmp( cmd, "rec" ) ||
+    				!strcmp( cmd, "r" ) ||
+					!strcmp( cmd, "record" )
+    			)
     			ect_print_d_entry_values_rec( 0 );
-    		if( !strcmp( cmd, "sts" ) )
+    		if( !strcmp( cmd, "sts" ) ||
+    				!strcmp( cmd, "s" )
+    				)
     			ect_print_d_entry_values_sts( 0 );
+
+    		if( !strcmp( cmd, "norecsts" ) ||
+    				!strcmp( cmd, "nors" )
+    				)
+    			ect_print_d_entry_values( 0 );
+
     		return 0;
     	}
     }
 
 
-    return ect_print_d_entry_values( 0 );
+    return ect_print_d_entry_values_recsts( 0 );
 }
 
 
