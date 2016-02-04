@@ -149,10 +149,9 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 	if( bitspec > -1 )
 		bitlen = 1;
 
-
 	switch( bitlen )
 	{
-		case 1:  sprintf( sbuf, "%d", (bitspec > -1 ? val >> bitspec : val) & 0x00000001 ); break;
+		case 1:  sprintf( sbuf, "%d", val ); break;
 		case 8:  sprintf( sbuf, "0x%02x", (unsigned char)val ); break;
 		case 16: sprintf( sbuf, "0x%04x", (unsigned short)val ); break;
 		case 32: sprintf( sbuf, "0x%08x", (unsigned int)val ); break;

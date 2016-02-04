@@ -60,7 +60,7 @@ void process_hooks( initHookState state )
 				// start various threads
 				for( ec = &ecatList; *ec; ec = &(*ec)->next )
 				{
-					(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 60, // epicsThreadPriorityLow,
+					(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 80, // epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
 					(*ec)->irqthread = epicsThreadMustCreate( ECAT_TNAME_IRQ, epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_irq_thread, *ec );
@@ -342,12 +342,6 @@ long drvethercatConfigure(
 
 	FN_CALLED;
 
-	printf( "/----------------------------------------------\\\n" );
-    printf( "|                                              |\n" );
-    printf( "|  PSI EtherCAT EPICS driver (ecat2) v2.0.7    |\n" );
-    printf( "|                                              |\n" );
-	printf( "\\----------------------------------------------/\n" );
-
     // check arguments
     if( domain_nr < 0 ||
     	freq < 0.001 || freq > 13000.0 ||
@@ -363,7 +357,7 @@ long drvethercatConfigure(
         printf( " autoconfig      Should driver autoconfigure the domain?\n");
         printf( " autostart       Should domain packet exchange be automatically started?\n");
         printf( " \nExample:\n");
-        printf( " drvethercatConfigure 0, 200, 1, 1\n");
+        printf( " drvethercatConfigure 0, 1000, 1, 1\n");
         printf( "----------------------------------------------------------------------------------\n" );
 
         printf( "\n***** ecat2 driver called with drvethercatConfigure %d, %f, %d, %d\n",
@@ -459,6 +453,7 @@ long drvethercatConfigure(
     (*ec)->dnr = domain_nr;
 	(*ec)->rw_lock = epicsMutexMustCreate();
 	(*ec)->health_lock = epicsMutexMustCreate();
+	(*ec)->irq_lock = epicsMutexMustCreate();
 	(*ec)->rate = (long)((double)1000000000.0/(double)freq);
 	(*ec)->m = m;
 	(*ec)->irq = epicsEventMustCreate( epicsEventEmpty );
@@ -478,6 +473,12 @@ long drvethercatConfigure(
 	if( !(*ec)->w_mask )
 	{
 		errlogSevPrintf( errlogFatal, "%s: allocating memory for domain wmask failed\n", __func__ );
+		return ERR_OUT_OF_MEMORY;
+	}
+    (*ec)->irq_r_mask = calloc( 1, (*ec)->d->ddata.dsize );
+	if( !(*ec)->irq_r_mask )
+	{
+		errlogSevPrintf( errlogFatal, "%s: allocating memory for domain irq rmask failed\n", __func__ );
 		return ERR_OUT_OF_MEMORY;
 	}
 

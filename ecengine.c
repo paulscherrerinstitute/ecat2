@@ -1,6 +1,12 @@
 
 #include "ec.h"
 
+int wt_counter[EC_MAX_DOMAINS] = { 0 },
+		delayed[EC_MAX_DOMAINS] = { 0 },
+		recd[EC_MAX_DOMAINS] = { 0 },
+		forwarded[EC_MAX_DOMAINS] = { 0 };
+
+
 static epicsUInt16 endian_uint16( epicsUInt16 val )
 {
 	epicsUInt16 retv = 0;
@@ -850,19 +856,40 @@ inline void process_write_values( char *dmem, ecnode *d, char *wmask )
 
 }
 
-int wt_counter[EC_MAX_DOMAINS] = { 0 },
-		delayed[EC_MAX_DOMAINS] = { 0 },
-		recd[EC_MAX_DOMAINS] = { 0 },
-		forwarded[EC_MAX_DOMAINS] = { 0 };
+inline int irq_values_changed( ethcat *ec )
+{
+	register int i, len = ec->d->ddata.dsize / sizeof(int);
+	register int *irqmask = (int *)ec->irq_r_mask,  // using int for faster cmp
+					*rmem = (int *)ec->d->ddata.rmem,
+					*dmem = (int *)ec->d->ddata.dmem;
+
+	for( i = 0; i < len; i++ )
+		if( *(irqmask + i) )
+			if( (*(rmem + i) & *(irqmask + i)) !=
+					(*(dmem + i) & *(irqmask + i)) )
+			{
+#if 0
+				printf( "change detected: offset %d, old 0x%08x, new 0x%08x\n",
+						i*sizeof(int),
+						*(rmem + i) & *(irqmask + i),
+						*(dmem + i) & *(irqmask + i) );
+#endif
+				return 1;
+			}
+
+	return 0;
+}
+
 
 
 void ec_worker_thread( void *data )
 {
-	int delayctr, dnr;
+	int delayctr, dnr, chg;
 	struct timespec rec = { .tv_sec = 0, .tv_nsec = 50000 };
 	ethcat *ec = (ethcat *)data;
 	ec_master_t *ecm;
 	ec_domain_t *ecd;
+//	static int printcnt = 0;
 
 	FN_CALLED;
 
@@ -893,12 +920,7 @@ void ec_worker_thread( void *data )
 	dnr = ec->d->nr;
 
 	ec->d->ddata.is_running = 1;
-#if 0
-	st_end( 0 );
-	printf( "\n\n" );
-	st_print( 0 );
-	printf( "\n\n" );
-#endif
+
 	//----------------------
 	while( 1 )
 	{
@@ -907,12 +929,14 @@ void ec_worker_thread( void *data )
 		ecrt_domain_process( ecd );
 
 		epicsMutexMustLock( ec->rw_lock );
+		chg = irq_values_changed( ec );
 		memcpy( ec->d->ddata.rmem, ec->d->ddata.dmem, ec->d->ddata.dsize );
 		process_write_values( ec->d->ddata.dmem, ec->d, ec->w_mask );
 		process_sts_entries( ec->d );
 		epicsMutexUnlock( ec->rw_lock );
 
-		epicsEventSignal( ec->irq );
+		if( chg )
+			epicsEventSignal( ec->irq );
 
 		ecrt_domain_queue( ecd );
 		ecrt_master_send( ecm );

@@ -370,6 +370,9 @@ typedef struct ecat {
 
 	char *w_mask;
 
+	char *irq_r_mask;
+	epicsMutexId irq_lock;
+
 	epicsMutexId rw_lock;
 	epicsMutexId health_lock;
 

@@ -78,11 +78,14 @@ static long dev_init( int phase )
 }
 
 
+
 static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 {
 	ethcat *e;
-	int ix;
+	int i, ix;
 	RECTYPE retv;
+	devethercat_private *p;
+
 	FN_CALLED;
 
 	if( !prec->dpvt )
@@ -91,7 +94,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 		return S_dev_badArgument;
 	}
 
-	e = ((devethercat_private *)prec->dpvt)->e;
+	e = (p = (devethercat_private *)prec->dpvt)->e;
 	if( !e )
 	{
 		errlogSevPrintf( errlogFatal, "%s: record not initialized properly (2)\n", __func__ );
@@ -101,6 +104,12 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 	retv = dev_get_record_type( prec, &ix );
 	if( retv == REC_ERROR )
 		return S_dev_badArgument;
+
+	if( p->dreg_info.bitlen < 8)
+		for( i = 0; i < p->dreg_info.bitlen; i++ )
+			*(e->irq_r_mask + p->dreg_info.offs) |= (0x01 << (p->dreg_info.bit+i));
+	else
+		memset( e->irq_r_mask + p->dreg_info.offs, 0xff, p->dreg_info.bitlen / 8 );
 
 	switch( rectypes[ix].riotype )
 	{
@@ -703,7 +712,6 @@ long dev_rw_bi( biRecord *record )
    	int status = 0;
    	devethercat_private  *priv = (devethercat_private *)record->dpvt;
 	FN_CALLED;
-
    	CHECK_RECINIT;
 
 	if( priv->sysrecdata.system )
