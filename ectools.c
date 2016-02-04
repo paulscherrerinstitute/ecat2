@@ -456,10 +456,6 @@ int ect_print_d_entry_values_recsts( int dnr )
 }
 
 
-int parse_dmap_cmd( int *)
-{
-}
-
 
 long dmap( char *cmd )
 {
