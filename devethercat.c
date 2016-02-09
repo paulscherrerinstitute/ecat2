@@ -1,3 +1,30 @@
+/*
+ *
+ * (c) 2013 Dragutin Maier-Manojlovic     dragutin.maier-manojlovic@psi.ch
+ * Date: 01.10.2013
+ *
+ * Paul Scherrer Institute (PSI)
+ * Switzerland
+ *
+ * This file and the package it belongs to have to be redistributed as is,
+ * with no changes.
+ * Any changes to this file mean that further distribution is not allowed.
+ * Bugs/errors/patches/feature requests can be sent directly to the author,
+ * and if they are accepted, will be included in the next version or release.
+ *
+ * Disclaimer:
+ * The software (code, tools) is provided "as is", without warranty of any kind.
+ * Author makes no warranties, express or implied, that the code is free of
+ * errors, or is consistent with any particular standard, or that it
+ * will meet your requirements for any particular application.
+ * It should not be relied on for solving a problem whose correct or incorrect
+ * solution could result in injury to a person or a loss of property.
+ * The author disclaim all liability for direct, indirect or
+ * consequential damage resulting from your use of the code or tools.
+ * If you do use it, it is at your own risk.
+ *
+ */
+
 #include "ec.h"
 
 //----------------------------------------------------------------------------------------------
@@ -85,6 +112,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 	int i, ix;
 	RECTYPE retv;
 	devethercat_private *p;
+	static int irq_rec = 0;
 
 	FN_CALLED;
 
@@ -105,11 +133,22 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 	if( retv == REC_ERROR )
 		return S_dev_badArgument;
 
-	if( p->dreg_info.bitlen < 8)
-		for( i = 0; i < p->dreg_info.bitlen; i++ )
-			*(e->irq_r_mask + p->dreg_info.offs) |= (0x01 << (p->dreg_info.bit+i));
+	if( !p->sysrecdata.system )
+	{
+		if( p->dreg_info.bitlen < 8)
+			for( i = 0; i < p->dreg_info.bitlen; i++ )
+				*(e->irq_r_mask + p->dreg_info.offs) |= (0x01 << (p->dreg_info.bit+i));
+		else
+			memset( e->irq_r_mask + p->dreg_info.offs, 0xff, p->dreg_info.bitlen / 8 );
+
+		printf( "Record %s registered as I/O Intr, offset %04x, ", prec->name, p->dreg_info.offs );
+		if( p->dreg_info.bitlen < 8)
+			printf( "bit %d, bitlen %d", p->dreg_info.bit, p->dreg_info.bitlen );
+		else
+			printf( "bytes %d", p->dreg_info.bitlen / 8 );
+	}
 	else
-		memset( e->irq_r_mask + p->dreg_info.offs, 0xff, p->dreg_info.bitlen / 8 );
+		printf( "Record %s registered as I/O Intr (EtherCAT system record)", prec->name );
 
 	switch( rectypes[ix].riotype )
 	{
@@ -117,6 +156,8 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 		case RIO_WRITE:	*io = e->w_scan; break;
 		default:		return S_dev_success; // to supress gcc warning
 	}
+
+	printf( ", %d I/O Intr records total so far\n", ++irq_rec );
 
  	return S_dev_success;
 }

@@ -2,6 +2,9 @@
 #
 # ethercat 2 driver for EtherCAT devices
 #
+# Author: Draugitn Maier-Manojlovic
+#
+# Paul Scherrer Institute (PSI)
 #
 driver(drvecat2)
 

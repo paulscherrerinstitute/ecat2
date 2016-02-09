@@ -1,3 +1,30 @@
+/*
+ *
+ * (c) 2013 Dragutin Maier-Manojlovic     dragutin.maier-manojlovic@psi.ch
+ * Date: 01.10.2013
+ *
+ * Paul Scherrer Institute (PSI)
+ * Switzerland
+ *
+ * This file and the package it belongs to have to be redistributed as is,
+ * with no changes.
+ * Any changes to this file mean that further distribution is not allowed.
+ * Bugs/errors/patches/feature requests can be sent directly to the author,
+ * and if they are accepted, will be included in the next version or release.
+ *
+ * Disclaimer:
+ * The software (code, tools) is provided "as is", without warranty of any kind.
+ * Author makes no warranties, express or implied, that the code is free of
+ * errors, or is consistent with any particular standard, or that it
+ * will meet your requirements for any particular application.
+ * It should not be relied on for solving a problem whose correct or incorrect
+ * solution could result in injury to a person or a loss of property.
+ * The author disclaim all liability for direct, indirect or
+ * consequential damage resulting from your use of the code or tools.
+ * If you do use it, it is at your own risk.
+ *
+ */
+
 
 #include "ec.h"
 
@@ -517,8 +544,12 @@ int ect_print_stats( int dnr )
 	printf( "PSI EtherCAT driver statistics\n" );
 	printf( "------------------------------\n" );
 
-	printf( "Worker thread: " );
+	printf( "Worker thread:\n" );
 	printf( "thread cycles %d, delayed %d, received %d, timer cycles %d\n", wt_counter[dnr], delayed[dnr], recd[dnr], forwarded[dnr] );
+	printf( "   irq cycles %d", irqs_executed[dnr] );
+	if( wt_counter[dnr] > 0 )
+		printf( ", (%f)", (double)irqs_executed[dnr]/(double)wt_counter[dnr] );
+	printf( "\n" );
 
 	epicsMutexMustLock( e->rw_lock );
 	memcpy( packet, d->ddata.dmem, d->ddata.dsize );
