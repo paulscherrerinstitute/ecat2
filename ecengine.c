@@ -887,38 +887,33 @@ inline void process_write_values( char *dmem, ecnode *d, char *wmask )
 
 inline int irq_values_changed( ethcat *ec )
 {
+	register int mask;
 	register int i, len = ec->d->ddata.dsize / sizeof(int);
 	register int *irqmask = (int *)ec->irq_r_mask,  // using int for faster cmp
 					*rmem = (int *)ec->d->ddata.rmem,
 					*dmem = (int *)ec->d->ddata.dmem;
 
 	for( i = 0; i < len; i++ )
-		if( *(irqmask + i) )
-			if( (*(rmem + i) & *(irqmask + i)) !=
-					(*(dmem + i) & *(irqmask + i)) )
-			{
-#if 0
-				printf( "change detected: offset %d, old 0x%08x, new 0x%08x\n",
-						i*sizeof(int),
-						*(rmem + i) & *(irqmask + i),
-						*(dmem + i) & *(irqmask + i) );
-#endif
+		if( (mask = *(irqmask + i)) )
+			if( (*(rmem + i) & mask) !=
+					(*(dmem + i) & mask) )
 				return 1;
-			}
 
 	return 0;
 }
 
-
+//#define DEBUG_TIMING_9
 
 void ec_worker_thread( void *data )
 {
-	int delayctr, dnr, chg;
+	int delayctr, dnr, chg = 0;
 	struct timespec rec = { .tv_sec = 0, .tv_nsec = 50000 };
 	ethcat *ec = (ethcat *)data;
 	ec_master_t *ecm;
 	ec_domain_t *ecd;
-//	static int printcnt = 0;
+#ifdef DEBUG_TIMING_9
+	struct timespec pt0_last = { 0 }, pt0_now;
+#endif
 
 	FN_CALLED;
 
@@ -958,12 +953,12 @@ void ec_worker_thread( void *data )
 		ecrt_domain_process( ecd );
 
 		epicsMutexMustLock( ec->rw_lock );
-#ifdef DEBUG_TIMING_0
-		st_start(0);
+#ifdef DEBUG_TIMING_9
+		st_start( 9 );
 #endif
-		chg = irq_values_changed( ec );
-#ifdef DEBUG_TIMING_0
-		st_stop(0);
+	//	chg = irq_values_changed( ec );
+#ifdef DEBUG_TIMING_9
+		st_end( 9 );
 #endif
 		memcpy( ec->d->ddata.rmem, ec->d->ddata.dmem, ec->d->ddata.dsize );
 		process_write_values( ec->d->ddata.dmem, ec->d, ec->w_mask );
@@ -1000,6 +995,16 @@ void ec_worker_thread( void *data )
 
 		wt_counter[dnr]++;
 
+#ifdef DEBUG_TIMING_9
+		clock_gettime( CLOCK_MONOTONIC, &pt0_now );
+		if( pt0_now.tv_sec > pt0_last.tv_sec )
+		{
+			printf( "***TIMING: " );
+			st_print( 9 );
+			printf( "\n" );
+		}
+		memcpy( &pt0_last, &pt0_now, sizeof(struct timespec) );
+#endif
 	}
 
 	ec->d->ddata.is_running = 0;
