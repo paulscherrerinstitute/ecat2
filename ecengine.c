@@ -956,7 +956,7 @@ void ec_worker_thread( void *data )
 #ifdef DEBUG_TIMING_9
 		st_start( 9 );
 #endif
-	//	chg = irq_values_changed( ec );
+		chg = irq_values_changed( ec );
 #ifdef DEBUG_TIMING_9
 		st_end( 9 );
 #endif
@@ -1010,4 +1010,5 @@ void ec_worker_thread( void *data )
 	ec->d->ddata.is_running = 0;
 
 }
+
 
