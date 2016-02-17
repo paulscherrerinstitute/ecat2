@@ -373,7 +373,7 @@ long drvethercatConfigure(
 
     // check arguments
     if( domain_nr < 0 ||
-    	freq < 0.001 || freq > 13000.0 ||
+    	freq < 0.001 || freq > 15000.0 ||
     	autoconfig < 0 || autoconfig > 1 ||
     	autostart < 0 || autostart > 1
    	)

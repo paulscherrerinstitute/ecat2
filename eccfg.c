@@ -448,6 +448,3 @@ ecnode *add_domain( ecnode *m, int rate )
     return d;
 }
 
-
-
-

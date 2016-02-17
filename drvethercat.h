@@ -114,7 +114,8 @@ extern int delayed[EC_MAX_DOMAINS];
 extern int recd[EC_MAX_DOMAINS];
 extern int forwarded[EC_MAX_DOMAINS];
 extern int irqs_executed[EC_MAX_DOMAINS];
-
+extern int delayctr_cumulative[EC_MAX_DOMAINS];
+extern int dropped[EC_MAX_DOMAINS];
 
 #endif
 

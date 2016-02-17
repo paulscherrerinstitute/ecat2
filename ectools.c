@@ -545,11 +545,22 @@ int ect_print_stats( int dnr )
 	printf( "------------------------------\n" );
 
 	printf( "Worker thread:\n" );
-	printf( "thread cycles %d, delayed %d, received %d, timer cycles %d\n", wt_counter[dnr], delayed[dnr], recd[dnr], forwarded[dnr] );
-	printf( "   irq cycles %d", irqs_executed[dnr] );
+	printf( "           cycles: %d, rcvd: %d (%.6f%%), dropped %d (%.6f%%)\n",
+				wt_counter[dnr],
+				recd[dnr],
+				(double)100.0*((double)recd[dnr]/(double)(wt_counter[dnr] ? wt_counter[dnr] : 1)),
+				dropped[dnr],
+				(double)100.0*((double)dropped[dnr]/(double)(wt_counter[dnr] ? wt_counter[dnr] : 1))
+				);
+	printf( "       irq cycles: %d", irqs_executed[dnr] );
 	if( wt_counter[dnr] > 0 )
 		printf( ", (%f)", (double)irqs_executed[dnr]/(double)wt_counter[dnr] );
 	printf( "\n" );
+
+	printf( "          delayed: %d\n",  delayed[dnr] );
+	printf( "      microdelays: %d\n", delayctr_cumulative[dnr] );
+	printf( " avg mdel per del: %f\n", (double)delayctr_cumulative[dnr] / (double)(delayed[dnr] > 0 ? delayed[dnr] : 1) );
+
 
 	epicsMutexMustLock( e->rw_lock );
 	memcpy( packet, d->ddata.dmem, d->ddata.dsize );
@@ -569,6 +580,7 @@ int ect_print_stats( int dnr )
 	printf( "      Memory allocated (in bytes): %d \n", d->ddata.dallocated );
 	printf( "    No. of slave-to-slave entries: %d \n", d->ddata.num_of_sts_entries );
 
+	return 0;
 	printf( "\nDomain %d content (%d bytes):", dnr, d->ddata.dsize );
 
 	for( i = 0; i < d->ddata.dsize; i++ )

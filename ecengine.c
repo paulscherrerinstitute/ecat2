@@ -33,7 +33,9 @@ int wt_counter[EC_MAX_DOMAINS] = { 0 },
 		delayed[EC_MAX_DOMAINS] = { 0 },
 		recd[EC_MAX_DOMAINS] = { 0 },
 		forwarded[EC_MAX_DOMAINS] = { 0 },
-		irqs_executed[EC_MAX_DOMAINS] = { 0 };
+		irqs_executed[EC_MAX_DOMAINS] = { 0 },
+		dropped[EC_MAX_DOMAINS] = { 0 },
+		delayctr_cumulative[EC_MAX_DOMAINS] = { 0.0 };
 
 
 static epicsUInt16 endian_uint16( epicsUInt16 val )
@@ -902,7 +904,29 @@ inline int irq_values_changed( ethcat *ec )
 	return 0;
 }
 
-//#define DEBUG_TIMING_9
+#define PRINT_DEBUG_TIMING
+
+static int use_dt_1 = 0,
+		use_dt_2 = 0;
+
+#define __s(x) \
+	if( use_dt_##x ) \
+		st_start( x );
+
+#define __e(x) \
+	if( use_dt_##x ) \
+		st_end( x );
+
+#define __p(x) \
+		clock_gettime( CLOCK_MONOTONIC, &pt_now[x] ); \
+		if( pt_now[x].tv_sec > pt_last[x].tv_sec ) \
+		{ \
+			printf( "*** TIMING: " ); \
+			st_print( x ); \
+			printf( "\n" ); \
+		} \
+		memcpy( &pt_last[x], &pt_now[x], sizeof(struct timespec) );
+
 
 void ec_worker_thread( void *data )
 {
@@ -911,8 +935,9 @@ void ec_worker_thread( void *data )
 	ethcat *ec = (ethcat *)data;
 	ec_master_t *ecm;
 	ec_domain_t *ecd;
-#ifdef DEBUG_TIMING_9
-	struct timespec pt0_last = { 0 }, pt0_now;
+
+#ifdef PRINT_DEBUG_TIMING
+	struct timespec pt_last[10] = { { 0 } }, pt_now[10];
 #endif
 
 	FN_CALLED;
@@ -953,13 +978,7 @@ void ec_worker_thread( void *data )
 		ecrt_domain_process( ecd );
 
 		epicsMutexMustLock( ec->rw_lock );
-#ifdef DEBUG_TIMING_9
-		st_start( 9 );
-#endif
 		chg = irq_values_changed( ec );
-#ifdef DEBUG_TIMING_9
-		st_end( 9 );
-#endif
 		memcpy( ec->d->ddata.rmem, ec->d->ddata.dmem, ec->d->ddata.dsize );
 		process_write_values( ec->d->ddata.dmem, ec->d, ec->w_mask );
 		process_sts_entries( ec->d );
@@ -971,40 +990,42 @@ void ec_worker_thread( void *data )
 			irqs_executed[dnr]++;
 		}
 
+//		__s(1);
 		ecrt_domain_queue( ecd );
 		ecrt_master_send( ecm );
+//		__e(1);
 
-		forwarded[dnr] += tmr_wait( 0 );
+		forwarded[dnr] += (tmr_wait( 0 ) - 1);
 
 		delayctr = 0;
 		while( 1 )
 		{
+			__s(2);
             ecrt_master_receive( ecm );
+    		__e(2);
     		if( ecrt_domain_received( ecd ) )
     		{
     			recd[dnr]++;
             	break;
     		}
-			delayed[dnr]++;
-            delayctr++;
 
-			if( delayctr > 10 )
+			if( ++delayctr > 50 )
+			{
+				dropped[dnr]++;
 				break;
+			}
 			clock_nanosleep( CLOCK_MONOTONIC, 0, &rec, NULL );
 		}
 
+		if( delayctr )
+		{
+			delayed[dnr]++;
+			delayctr_cumulative[dnr] += (double)delayctr;
+		}
 		wt_counter[dnr]++;
 
-#ifdef DEBUG_TIMING_9
-		clock_gettime( CLOCK_MONOTONIC, &pt0_now );
-		if( pt0_now.tv_sec > pt0_last.tv_sec )
-		{
-			printf( "***TIMING: " );
-			st_print( 9 );
-			printf( "\n" );
-		}
-		memcpy( &pt0_last, &pt0_now, sizeof(struct timespec) );
-#endif
+//		__p(1);
+//		__p(2);
 	}
 
 	ec->d->ddata.is_running = 0;

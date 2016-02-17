@@ -118,14 +118,14 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 
 	if( !prec->dpvt )
 	{
-		errlogSevPrintf( errlogFatal, "%s: record not initialized properly (1)\n", __func__ );
+		errlogSevPrintf( errlogFatal, "%s: record %s not initialized properly (1)\n", __func__, prec->name );
 		return S_dev_badArgument;
 	}
 
 	e = (p = (devethercat_private *)prec->dpvt)->e;
 	if( !e )
 	{
-		errlogSevPrintf( errlogFatal, "%s: record not initialized properly (2)\n", __func__ );
+		errlogSevPrintf( errlogFatal, "%s: record %s not initialized properly (2)\n", __func__, prec->name );
 		return S_dev_badArgument;
 	}
 
