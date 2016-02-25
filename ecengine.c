@@ -904,10 +904,12 @@ inline int irq_values_changed( ethcat *ec )
 	return 0;
 }
 
-#define PRINT_DEBUG_TIMING
+//#define PRINT_DEBUG_TIMING
 
+#ifdef PRINT_DEBUG_TIMING
 static int use_dt_1 = 0,
 		use_dt_2 = 0;
+#endif
 
 #define __s(x) \
 	if( use_dt_##x ) \
@@ -926,7 +928,6 @@ static int use_dt_1 = 0,
 			printf( "\n" ); \
 		} \
 		memcpy( &pt_last[x], &pt_now[x], sizeof(struct timespec) );
-
 
 void ec_worker_thread( void *data )
 {
@@ -990,19 +991,27 @@ void ec_worker_thread( void *data )
 			irqs_executed[dnr]++;
 		}
 
-//		__s(1);
+#ifdef PRINT_DEBUG_TIMING
+		__s(1);
+#endif
 		ecrt_domain_queue( ecd );
 		ecrt_master_send( ecm );
-//		__e(1);
+#ifdef PRINT_DEBUG_TIMING
+		__e(1);
+#endif
 
 		forwarded[dnr] += (tmr_wait( 0 ) - 1);
 
 		delayctr = 0;
 		while( 1 )
 		{
+#ifdef PRINT_DEBUG_TIMING
 			__s(2);
+#endif
             ecrt_master_receive( ecm );
+#ifdef PRINT_DEBUG_TIMING
     		__e(2);
+#endif
     		if( ecrt_domain_received( ecd ) )
     		{
     			recd[dnr]++;
@@ -1024,8 +1033,10 @@ void ec_worker_thread( void *data )
 		}
 		wt_counter[dnr]++;
 
-//		__p(1);
-//		__p(2);
+#ifdef PRINT_DEBUG_TIMING
+		__p(1);
+		__p(2);
+#endif
 	}
 
 	ec->d->ddata.is_running = 0;

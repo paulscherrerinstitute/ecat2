@@ -88,7 +88,6 @@
 
 #include "ecrt.h"
 
-
 #include "eccommon.h"
 
 #include "drvethercat.h"

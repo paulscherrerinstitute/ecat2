@@ -34,7 +34,7 @@
 
 ecnode *ecn_add_child( ecnode *parent )
 {
-	ecnode *node, *nnode;
+	ecnode *node = NULL /* to satisfy -Wall */, *nnode;
 
 	if( parent )
 		 node = parent->child;

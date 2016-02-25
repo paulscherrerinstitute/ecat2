@@ -30,7 +30,6 @@
 #ifndef ECCOMMON_H
 #define ECCOMMON_H
 
-
 #define FREQ_1Hz	1000000
 #define FREQ_2Hz	500000
 #define FREQ_3Hz	333333
@@ -82,13 +81,13 @@
 #define IOCTL_MSG_DOMEXISTS _IOWR(PSI_ECAT_VERSION_MAGIC, 21, int)
 
 //------------------------------------------
-
-
-//-------------------------------
 typedef struct _ecd_master ecd_master;
 typedef struct _ecd_domain ecd_domain;
 typedef struct _ecnode ecnode;
+
+
 //-------------------------------
+
 
 //
 //
@@ -187,7 +186,7 @@ typedef struct _sts_entry {
 } sts_entry;
 
 
-typedef struct _ecd_domain {
+struct _ecd_domain {
 
     ecnode *nmaster;
     struct task_struct *domain_thread;
@@ -214,7 +213,7 @@ typedef struct _ecd_domain {
 	ec_pdo_entry_reg_t *regs;
 	domain_reg_info *reginfos;
 
-} ecd_domain;
+};
 
 typedef struct _ecd_slave {
 
@@ -229,7 +228,7 @@ typedef struct _ecd_slave {
 //------------------------------------------
 
 
-typedef struct _ecd_master {
+struct _ecd_master {
 	ec_master_t *master;
 
 	ec_master_info_t master_info;
@@ -242,7 +241,7 @@ typedef struct _ecd_master {
 
     struct task_struct *master_thread;
 
-} ecd_master;
+};
 
 
 //-------------------------------------
@@ -261,7 +260,7 @@ typedef enum {
 
 // very flat node structure for
 // easier access to members in code
-typedef struct _ecnode {
+struct _ecnode {
 	ECN_TYPE	type;
 	struct _ecnode *parent;
 	struct _ecnode *next;
@@ -307,7 +306,7 @@ typedef struct _ecnode {
 
 	conn_rec *cr;
 
-} ecnode;
+};
 
 
 
