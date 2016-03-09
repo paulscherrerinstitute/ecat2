@@ -29,13 +29,13 @@
 
 #include "ec.h"
 
-int wt_counter[EC_MAX_DOMAINS] = { 0 },
-		delayed[EC_MAX_DOMAINS] = { 0 },
-		recd[EC_MAX_DOMAINS] = { 0 },
-		forwarded[EC_MAX_DOMAINS] = { 0 },
-		irqs_executed[EC_MAX_DOMAINS] = { 0 },
-		dropped[EC_MAX_DOMAINS] = { 0 },
-		delayctr_cumulative[EC_MAX_DOMAINS] = { 0.0 };
+long long wt_counter[EC_MAX_DOMAINS] = { 0 },
+			delayed[EC_MAX_DOMAINS] = { 0 },
+			recd[EC_MAX_DOMAINS] = { 0 },
+			forwarded[EC_MAX_DOMAINS] = { 0 },
+			irqs_executed[EC_MAX_DOMAINS] = { 0 },
+			dropped[EC_MAX_DOMAINS] = { 0 },
+			delayctr_cumulative[EC_MAX_DOMAINS] = { 0.0 };
 
 
 static epicsUInt16 endian_uint16( epicsUInt16 val )

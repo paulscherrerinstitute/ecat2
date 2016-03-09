@@ -153,7 +153,7 @@ static int ect_print_d_entry_values( int dnr )
 
 #if PRINT_RECVAL
 static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bitlen, int bitspec,
-																		int nobt, int shift, int mask, int sio,
+																		int nobt, int shift, int mask,
 																		int byteoffs, int bytelen )
 {
 	epicsUInt32 val;
@@ -195,7 +195,7 @@ static void ect_print_val( ethcat *e, RECTYPE rectype, int byte, int bit, int bi
 static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 {
 	conn_rec **cr = &dreginfo->pdo_entry->cr;
-	int morethan1 = 0, sio = 0;
+	int morethan1 = 0;
 
 	if( *cr )
 		if( (*cr)->next )
@@ -282,16 +282,16 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 				(*cr)->rec->name
 				);
 
+		printf( " = " );
 		if( (*cr)->rectype == REC_AAI || (*cr)->rectype == REC_AAO )
 		{
-			printf( " = " );
 			printf( "{ " );
 			int i;
 			for( i = 0; i < ((aaiRecord *)((*cr)->rec))->nelm; i++ )
 			{
 				ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs + i*(*cr)->ftvl_len, (*cr)->dreg_info->bit,
 							(*cr)->ftvl_len * 8,
-							-1, -1, -1, -1,	0,
+							-1, -1, -1, -1,
 							(*cr)->dreg_info->byteoffs, -1 );
 				if( i != ((aaiRecord *)((*cr)->rec))->nelm - 1 )
 					printf( ", " );
@@ -300,17 +300,10 @@ static void ect_print_d_entry_value_rec( ethcat *e, domain_reg_info *dreginfo )
 		}
 #if PRINT_RECVAL
 		else
-		{
-			printf( " = " );
-			if( (*cr)->rectype == REC_STRINGIN || (*cr)->rectype == REC_STRINGOUT )
-				sio = 1;
 			ect_print_val( e, (*cr)->rectype, (*cr)->dreg_info->offs, (*cr)->dreg_info->bit, (*cr)->dreg_info->bitlen,
 							(*cr)->dreg_info->bitspec, (*cr)->dreg_info->nobt, (*cr)->dreg_info->shft, (*cr)->dreg_info->mask,
-							sio,
 							(*cr)->dreg_info->byteoffs, (*cr)->dreg_info->bytelen );
-		}
 #endif
-
 
 		if( (*cr)->next )
 			printf( "\n" );
@@ -545,20 +538,20 @@ int ect_print_stats( int dnr )
 	printf( "------------------------------\n" );
 
 	printf( "Worker thread:\n" );
-	printf( "           cycles: %d, rcvd: %d (%.6f%%), dropped %d (%.6f%%)\n",
+	printf( "           cycles: %lld, rcvd: %lld (%.6f%%), dropped %lld (%.6f%%)\n",
 				wt_counter[dnr],
 				recd[dnr],
 				(double)100.0*((double)recd[dnr]/(double)(wt_counter[dnr] ? wt_counter[dnr] : 1)),
 				dropped[dnr],
 				(double)100.0*((double)dropped[dnr]/(double)(wt_counter[dnr] ? wt_counter[dnr] : 1))
 				);
-	printf( "       irq cycles: %d", irqs_executed[dnr] );
+	printf( "       irq cycles: %lld", irqs_executed[dnr] );
 	if( wt_counter[dnr] > 0 )
 		printf( ", (%f)", (double)irqs_executed[dnr]/(double)wt_counter[dnr] );
 	printf( "\n" );
 
-	printf( "          delayed: %d\n",  delayed[dnr] );
-	printf( "      microdelays: %d\n", delayctr_cumulative[dnr] );
+	printf( "          delayed: %lld\n",  delayed[dnr] );
+	printf( "      microdelays: %lld\n", delayctr_cumulative[dnr] );
 	printf( " avg mdel per del: %f\n", (double)delayctr_cumulative[dnr] / (double)(delayed[dnr] > 0 ? delayed[dnr] : 1) );
 
 
@@ -580,7 +573,7 @@ int ect_print_stats( int dnr )
 	printf( "      Memory allocated (in bytes): %d \n", d->ddata.dallocated );
 	printf( "    No. of slave-to-slave entries: %d \n", d->ddata.num_of_sts_entries );
 
-	return 0;
+#if 0
 	printf( "\nDomain %d content (%d bytes):", dnr, d->ddata.dsize );
 
 	for( i = 0; i < d->ddata.dsize; i++ )
@@ -595,6 +588,7 @@ int ect_print_stats( int dnr )
 			printf( "\n" );
 	}
 	printf( "\n" );
+#endif
 
 	return 0;
 }

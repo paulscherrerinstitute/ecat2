@@ -109,13 +109,13 @@ int drvSetValueFloat(
 
 int parse_datatype_get_len( epicsType etype );
 
-extern int wt_counter[EC_MAX_DOMAINS];
-extern int delayed[EC_MAX_DOMAINS];
-extern int recd[EC_MAX_DOMAINS];
-extern int forwarded[EC_MAX_DOMAINS];
-extern int irqs_executed[EC_MAX_DOMAINS];
-extern int delayctr_cumulative[EC_MAX_DOMAINS];
-extern int dropped[EC_MAX_DOMAINS];
+extern long long wt_counter[EC_MAX_DOMAINS];
+extern long long delayed[EC_MAX_DOMAINS];
+extern long long recd[EC_MAX_DOMAINS];
+extern long long forwarded[EC_MAX_DOMAINS];
+extern long long irqs_executed[EC_MAX_DOMAINS];
+extern long long delayctr_cumulative[EC_MAX_DOMAINS];
+extern long long dropped[EC_MAX_DOMAINS];
 
 #endif
 
