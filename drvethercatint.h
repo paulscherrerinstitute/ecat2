@@ -118,6 +118,7 @@ typedef struct {
 	const char *recname;
 	RECTYPE rtype;
 	RECIOTYPE riotype;
+	int bitlen;
 } _rectype;
 
 

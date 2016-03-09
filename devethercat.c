@@ -49,20 +49,20 @@ typedef struct _dev_ethercat_private {
 
 
 _rectype rectypes[] = {
-		{ "ai", 		REC_AI, 			RIO_READ },
-		{ "aai", 		REC_AAI, 			RIO_READ },
-		{ "bi", 		REC_BI, 			RIO_READ },
-		{ "mbbi", 		REC_MBBI, 			RIO_READ },
-		{ "mbbiDirect", REC_MBBIDIRECT, 	RIO_READ },
-		{ "longin", 	REC_LONGIN, 		RIO_READ },
-		{ "stringin", 	REC_STRINGIN, 		RIO_READ },
-		{ "ao", 		REC_AO, 			RIO_WRITE },
-		{ "aao", 		REC_AAO, 			RIO_WRITE },
-		{ "bo", 		REC_BO, 			RIO_WRITE },
-		{ "mbbo", 		REC_MBBO, 			RIO_WRITE },
-		{ "mbboDirect", REC_MBBODIRECT, 	RIO_WRITE },
-		{ "longout", 	REC_LONGOUT, 		RIO_WRITE },
-		{ "stringout", 	REC_STRINGOUT, 		RIO_WRITE },
+		{ "ai", 		REC_AI, 			RIO_READ,  sizeof(epicsUInt32) },
+		{ "aai", 		REC_AAI, 			RIO_READ,  -sizeof(epicsUInt32) },
+		{ "bi", 		REC_BI, 			RIO_READ,  1 },
+		{ "mbbi", 		REC_MBBI, 			RIO_READ,  sizeof(epicsUInt32) },
+		{ "mbbiDirect", REC_MBBIDIRECT, 	RIO_READ,  sizeof(epicsUInt32) },
+		{ "longin", 	REC_LONGIN, 		RIO_READ,  sizeof(epicsUInt32) },
+		{ "stringin", 	REC_STRINGIN, 		RIO_READ,  -sizeof(epicsUInt8) },
+		{ "ao", 		REC_AO, 			RIO_WRITE, sizeof(epicsUInt32) },
+		{ "aao", 		REC_AAO, 			RIO_WRITE, -sizeof(epicsUInt32) },
+		{ "bo", 		REC_BO, 			RIO_WRITE, 1 },
+		{ "mbbo", 		REC_MBBO, 			RIO_WRITE, sizeof(epicsUInt32) },
+		{ "mbboDirect", REC_MBBODIRECT, 	RIO_WRITE, sizeof(epicsUInt32) },
+		{ "longout", 	REC_LONGOUT, 		RIO_WRITE, sizeof(epicsUInt32) },
+		{ "stringout", 	REC_STRINGOUT, 		RIO_WRITE, -sizeof(epicsUInt8) },
 
 		{ NULL }
 };
@@ -79,6 +79,39 @@ static RECTYPE dev_get_record_type( dbCommon *prec, int *ix )
 
 	return REC_ERROR;
 }
+
+static int dev_get_record_bitlen( dbCommon *prec )
+{
+	FN_CALLED;
+	int i;
+	devethercat_private *p = (devethercat_private *)prec->dpvt;
+
+	if( !prec->rdes->name )
+		return REC_ERROR;
+
+	for( i = 0; rectypes[i].recname; i++ )
+		if( !strcmp( rectypes[i].recname, prec->rdes->name ) )
+		{
+			if( rectypes[i].bitlen < 0 )
+			{
+				switch( rectypes[i].rtype )
+				{
+					case REC_AAI:		return -rectypes[i].bitlen * ((aaiRecord *)prec)->nelm;
+					case REC_AAO:		return -rectypes[i].bitlen * ((aaoRecord *)prec)->nelm;
+					case REC_STRINGIN:
+					case REC_STRINGOUT:
+										return p->dreg_info.bytelen * 8;
+					default: // including default as well, in order to satisfy gcc...
+										return 0;
+				}
+			}
+
+			return rectypes[i].bitlen;
+		}
+	return 0;
+}
+
+
 
 
 /*-------------------------------------------------------------------------------------*/
@@ -109,7 +142,7 @@ static long dev_init( int phase )
 static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 {
 	ethcat *e;
-	int i, ix;
+	int i, ix, rec_bitlen;
 	RECTYPE retv;
 	devethercat_private *p;
 	static int irq_rec = 0;
@@ -135,17 +168,21 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 
 	if( !p->sysrecdata.system )
 	{
-		if( p->dreg_info.bitlen < 8)
+		rec_bitlen = dev_get_record_bitlen( prec );
+		if( rec_bitlen < 1 )
+			return S_dev_badArgument;
+
+		if( rec_bitlen < 8)
 			for( i = 0; i < p->dreg_info.bitlen; i++ )
 				*(e->irq_r_mask + p->dreg_info.offs) |= (0x01 << (p->dreg_info.bit+i));
 		else
-			memset( e->irq_r_mask + p->dreg_info.offs, 0xff, p->dreg_info.bitlen / 8 );
+			memset( e->irq_r_mask + p->dreg_info.offs, 0xff, rec_bitlen / 8 );
 
 		printf( "Record %s registered as I/O Intr, offset %04x, ", prec->name, p->dreg_info.offs );
-		if( p->dreg_info.bitlen < 8)
-			printf( "bit %d, bitlen %d", p->dreg_info.bit, p->dreg_info.bitlen );
+		if( rec_bitlen < 8)
+			printf( "bit %d, bitlen %d", p->dreg_info.bit, rec_bitlen );
 		else
-			printf( "bytes %d", p->dreg_info.bitlen / 8 );
+			printf( "bytes %d", rec_bitlen / 8 );
 	}
 	else
 		printf( "Record %s registered as I/O Intr (EtherCAT system record)", prec->name );
@@ -267,14 +304,7 @@ static char *parse_system_keywords[] = {
 
 		NULL
 };
-/*
-static char *parse_misc_keywords[] = {
-		"RAWDATA",
 
-		NULL
-};
-
-*/
 
 static struct { char* name; unsigned short dlen; epicsType type;} datatypes[] = {
 	{ "short",      2, epicsInt16T   },
