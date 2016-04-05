@@ -32,7 +32,7 @@
 #define pe_name(node) 	(d->ddata.reginfos[i].pdo_entry->pdo_entry_t->name ? get_pdo_entry_t(node)->name : "<no name>")
 void print_pdo_entry( ecnode *pe, int bitspec );
 
-//----------------------------------------------------------------------
+/*---------------------------------------------------------------------- */
 char *strtoupper( char *s )
 {
 	int ix = -1;
@@ -56,13 +56,13 @@ char *strtolower( char *s )
 }
 
 
-//----------------------------------------------------------------------
+/*---------------------------------------------------------------------- */
 
-//-------------------------------------------------------------------
-//
-// DMap
-//
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
+/* */
+/* DMap */
+/* */
+/*------------------------------------------------------------------- */
 
 
 static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dreginfo, int showpe )
@@ -89,7 +89,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 	printf( "%10s", sbuf );
 
 	sprintf( sbuf, "r%d = ",
-						//dnr,
+						/*dnr, */
 						dreginfo->domain_entry->nr
 				);
 	printf( "%8s", sbuf );
@@ -123,7 +123,7 @@ static void ect_print_d_entry_value( ethcat *e, int dnr, domain_reg_info *dregin
 
 			);
 
-//	printf( " offset %d.%d (0x%x.%d)", dreginfo->byte, dreginfo->bit, dreginfo->byte, dreginfo->bit );
+/*	printf( " offset %d.%d (0x%x.%d)", dreginfo->byte, dreginfo->bit, dreginfo->byte, dreginfo->bit ); */
 }
 
 static int ect_print_d_entry_values( int dnr )
@@ -467,7 +467,7 @@ int ect_print_d_entry_values_recsts( int dnr )
 		retv = ect_print_d_entry_value_sts( e, &d->ddata.reginfos[i] );
 		if( !retv )
 			printf( "\n" );
-//		printf( "\n" );
+/*		printf( "\n" ); */
 	}
 
 	printf( "\n" );
@@ -508,15 +508,17 @@ long dmap( char *cmd )
 }
 
 
-//-------------------------------------------------------------------
-//
-// Stat
-//
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
+/* */
+/* Stat */
+/* */
+/*------------------------------------------------------------------- */
 
 int ect_print_stats( int dnr )
 {
+#if 0
 	int i;
+#endif
 	ecnode *d = ecn_get_domain_nr( 0, dnr );
 	ethcat *e = drvFindDomain( dnr );
 	char *packet;
@@ -621,11 +623,11 @@ long stat( int dnr )
 
 
 
-//-------------------------------------------------------------------
-//
-// ConfigEL6692
-//
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
+/* */
+/* ConfigEL6692 */
+/* */
+/*------------------------------------------------------------------- */
 typedef struct _el6692 {
 	struct _el6692 *next;
 
@@ -639,8 +641,8 @@ typedef struct _el6692 {
 
 el6692 *el6692s = NULL;
 
-// currently not included by default,
-// since they have to be defined on both sides of EL6692
+/* currently not included by default, */
+/* since they have to be defined on both sides of EL6692 */
 ec_pdo_entry_info_t el6692_pdo_default_entries[] = {
     {0x10f4, 0x01, 2}, /* Sync Mode */
     {0x1800, 0x09, 1}, /* TxPDO-Toggle */
@@ -652,16 +654,16 @@ ec_pdo_entry_info_t el6692_pdo_default_entries[] = {
 
 
 ec_pdo_info_t el6692_pdos[] = {
-    { 0x1600, 0, NULL }, // RxPDO-Map
-    { 0x1a00, 0, NULL }, // TxPDO-Map
+    { 0x1600, 0, NULL }, /* RxPDO-Map */
+    { 0x1a00, 0, NULL }, /* TxPDO-Map */
     { 0x1a01, 6, el6692_pdo_default_entries + 0 }, /* TxPDO-Map External Sync Compact */
 };
 
 ec_sync_info_t el6692_syncs[] = {
     { 0, EC_DIR_OUTPUT, 0, NULL, EC_WD_DISABLE },
     { 1, EC_DIR_INPUT, 0, NULL, EC_WD_DISABLE },
-    { 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, // --> RxPDO
-    { 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, // --> TxPDO
+    { 2, EC_DIR_OUTPUT, 1, el6692_pdos + 0, EC_WD_DISABLE }, /* --> RxPDO */
+    { 3, EC_DIR_INPUT, 1, el6692_pdos + 1, EC_WD_DISABLE }, /* --> TxPDO */
     { 0xff }
 };
 
@@ -759,14 +761,14 @@ el6692 *get_6692_at_pos( int slave_pos )
 
 int get_no_pdos_6692( int sm_num )
 {
-	// sm 0 and 1
+	/* sm 0 and 1 */
 	if( sm_num < 2 )
 		return 0;
-	// sm 2
+	/* sm 2 */
 	if( sm_num == 2 )
 		return 1;
 
-	return 1; // sm3
+	return 1; /* sm3 */
 
 }
 
@@ -850,7 +852,7 @@ static el6692 *add_new_6692( int slave_pos )
 {
 	el6692 **mod;
 
-    // is this EL6692 already registered?
+    /* is this EL6692 already registered? */
     for( mod = &el6692s; *mod; mod = &((*mod)->next) )
     	if( (*mod)->slave_pos == slave_pos )
     		return (*mod);
@@ -974,11 +976,11 @@ getout:
 
 
 
-//-------------------------------------------------------------------
-//
-// StS
-//
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
+/* */
+/* StS */
+/* */
+/*------------------------------------------------------------------- */
 
 
 
@@ -990,7 +992,7 @@ static sts_entry *add_new_sts_entry( ecnode *d, ecnode *pe_from, ecnode *pe_to, 
 	sts_entry **se;
 
 
-    // is this entry already registered?
+    /* is this entry already registered? */
     for( se = &d->ddata.sts; *se; se = &((*se)->next) )
     	if( ((*se)->from.offs == from->offs && (*se)->from.bit == from->bit &&
     			(*se)->from.bitlen == from->bitlen && (*se)->from.bitspec == from->bitspec) ||
@@ -1117,11 +1119,11 @@ getout:
 
 
 
-//-------------------------------------------------------------------
-//
-// cfg slave
-//
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
+/* */
+/* cfg slave */
+/* */
+/*------------------------------------------------------------------- */
 
 
 #define MAX_PDOS			32
@@ -1297,7 +1299,7 @@ EC_ERR execute_configuration_prg( void )
 			entry_ix_wd_mode, entry_sub_ix, entry_bitlen;
 	ec_slave_config_t *sc;
 	ecnode *m = ecroot->child;
-	//ecnode *slave, *sm, *pdo, *pdoe;
+	/*ecnode *slave, *sm, *pdo, *pdoe; */
 	ec_slave_info_t slave_t;
 	ec_sync_info_t sync_t;
 #if EXTRA_DUPLICATE_CHECK
@@ -1327,7 +1329,7 @@ EC_ERR execute_configuration_prg( void )
 	printf( PPREFIX "Executing slave configuration program, %d step(s)\n", cfg_prg_no_of_steps );
 	do
 	{
-		//printf( PPREFIX "Step %d from %d: ", ix, cfg_prg_no_of_steps-1 );
+		/*printf( PPREFIX "Step %d from %d: ", ix, cfg_prg_no_of_steps-1 ); */
 		step = cfg_prg + ix;
 		cscmd             = step->cmd;
 		cmd = csc_cmd_str[(int)cscmd];
@@ -1371,7 +1373,7 @@ EC_ERR execute_configuration_prg( void )
 		switch( cscmd )
 		{
 			case CSC_SM:
-						// ecatcfg sm                   slavenr   smnr     dir        wd_mode
+						/* ecatcfg sm                   slavenr   smnr     dir        wd_mode */
 
 						if( pdo_ix_dir != EC_DIR_OUTPUT && pdo_ix_dir != EC_DIR_INPUT )
 						{
@@ -1397,7 +1399,7 @@ EC_ERR execute_configuration_prg( void )
 							return ERR_OPERATION_FAILED;
 						}
 
-						// refresh sm info
+						/* refresh sm info */
 #ifdef CFG2
 			        	if( ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sm->sync_t ) )
 			            	perrret( "%s: (EL6692) cannot get slave %d, sync mgr %d info\n", __func__, slave_nr, sm_nr );
@@ -1412,10 +1414,10 @@ EC_ERR execute_configuration_prg( void )
 						break;
 
 			case CSC_SM_CLEAR_PDOS:
-						// ecatcfg sm_clear_pdos        slavenr   smnr
+						/* ecatcfg sm_clear_pdos        slavenr   smnr */
 						ecrt_slave_config_pdo_assign_clear( sc, sm_nr );
 
-//						ecn_delete_children( sm );
+/*						ecn_delete_children( sm ); */
 						sm->sync_t.n_pdos = 0;
 
 #if PRINT_CFG_INFO
@@ -1425,7 +1427,7 @@ EC_ERR execute_configuration_prg( void )
 						break;
 
 			case CSC_SM_ADD_PDO:
-						// ecatcfg sm_add_pdo           slavenr   smnr     pdoindex
+						/* ecatcfg sm_add_pdo           slavenr   smnr     pdoindex */
 #if EXTRA_DUPLICATE_CHECK
 				ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sync_t );
 						found = 0;
@@ -1460,7 +1462,7 @@ EC_ERR execute_configuration_prg( void )
 						break;
 
 			case CSC_PDO_CLEAR_ENTRIES:
-						// ecatcfg pdo_clear_entries    slavenr   smnr     pdoindex
+						/* ecatcfg pdo_clear_entries    slavenr   smnr     pdoindex */
 
 						ecrt_slave_config_pdo_mapping_clear( sc, pdo_ix_dir );
 
@@ -1474,7 +1476,7 @@ EC_ERR execute_configuration_prg( void )
 						break;
 
 			case CSC_PDO_ADD_ENTRY:
-						// ecatcfg pdo_add_entry        slavenr   smnr     pdoindex   entryindex    entrysubindex   entrybitlen
+						/* ecatcfg pdo_add_entry        slavenr   smnr     pdoindex   entryindex    entrysubindex   entrybitlen */
 #if EXTRA_DUPLICATE_CHECK
 				 		ecrt_master_get_sync_manager( m->mdata.master, slave_nr, sm_nr, &sync_t );
 				 		found = 0;
@@ -1526,7 +1528,7 @@ EC_ERR execute_configuration_prg( void )
 #endif
 						break;
 
-			default:	// ...to satisfy gcc
+			default:	/* ...to satisfy gcc */
 						break;
 		}
 
@@ -1607,189 +1609,42 @@ long cfgslave( char *cmd, int slave_nr, int sm_nr, int pdo_ix_dir, int entry_ix_
 }
 
 
+/*------------------------------------------------------------------- */
+/*                                                                    */
+/* Si (slave info)                                                    */
+/*                                                                    */
+/*------------------------------------------------------------------- */
 
-
-
-
-//-------------------------------------------------------------------
-//
-// ecat2slave / genslave
-//
-//-------------------------------------------------------------------
-
-typedef enum {
-	GSC_CHK_ON_BOOT = 0,
-	GSC_CHK_EVERY,
-	GSC_CHK_ALL_EVERY,
-
-	GSC_ERROR = 0xffff
-} genslave_cmd;
-
-static char *gsc_cmd_str[] = {
-	"check_on_boot",
-	"check_every",
-
-	NULL
-};
-
-
-typedef struct {
-	genslave_cmd cmd;
-	int args[6];
-} genslave_cmdstep;
-
-static int genslave_cmd_no_of_steps = 0;
-static genslave_cmdstep *genslave_cmds = NULL;
-
-// ecat2slave {check_on_boot_only/check_always}  slavenr  vendor_id  product_code  revision_number  serial_number
-
-
-long genslave( char *cmd, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6 )
+int ect_print_si( int level )
 {
-	int cmd_ix = 0;
-	genslave_cmd gscmd = GSC_ERROR;
-	genslave_cmdstep *step;
-
-    if( !cmd )
-	{
-		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
-		return ERR_BAD_ARGUMENT;
-	}
-
-    if( !strlen(cmd) )
-	{
-		errlogSevPrintf( errlogFatal, "%s: cfgslave command not found\n", __func__ );
-		return ERR_BAD_ARGUMENT;
-	}
-
-    do
-	{
-		if( !strcmp( strtolower(cmd), gsc_cmd_str[cmd_ix] ) )
-		{
-			gscmd = (genslave_cmd)cmd_ix;
-			break;
-		}
-	} while( gsc_cmd_str[++cmd_ix] );
-
-	if( gscmd == GSC_ERROR )
-	{
-		errlogSevPrintf( errlogFatal, "%s: ecat2slave command '%s' is not valid\n", __func__, cmd );
-		return ERR_BAD_ARGUMENT;
-	}
+	return 0;
+}
 
 
-    if( !genslave_cmds )
+long si( int level )
+{
+    if( level < 0 )
     {
-		step = genslave_cmds = calloc( 1, sizeof(genslave_cmdstep) );
-		genslave_cmd_no_of_steps++;
-    }
-    else
-    {
-    	genslave_cmds = realloc( genslave_cmds, (++genslave_cmd_no_of_steps)*sizeof(genslave_cmdstep) );
-    	step = genslave_cmds + genslave_cmd_no_of_steps - 1;
+        printf( "----------------------------------------------------------------------------------\n" );
+        printf( "Usage: si [info_level]\n\n");
+        printf( " Argument        Desc\n");
+        printf( " info_level      Level of slave information, 0 to 2\n");
+        printf( " \nExamples:\n");
+        printf( " si\n");
+        printf( " si 2\n");
+        printf( "----------------------------------------------------------------------------------\n" );
+
+        printf( "\n***** ecat2 driver called with si %d\n", level );
+        return 0;
     }
 
-	if( !step || !genslave_cmds )
-	{
-		errlogSevPrintf( errlogFatal, "%s: out of memory\n", __func__ );
-		return ERR_OUT_OF_MEMORY;
-	}
 
-
-	step->cmd = gscmd;
-	step->args[0] = arg1;
-	step->args[1] = arg2;
-	step->args[2] = arg3;
-	step->args[3] = arg4;
-	step->args[4] = arg5;
-	step->args[5] = arg6;
-
-
-
-	return ERR_NO_ERROR;
+    return ect_print_si( level );
 }
 
 
-EC_ERR genslave_prepare_cmds( void )
-{
-/*
-	int ix = 0;
-	genslave_cmd gscmd;
-	genslave_cmdstep *step;
-	char *strcmd;
-
-	if( !genslave_cmds || !genslave_cmd_no_of_steps )
-		return ERR_NO_ERROR;
-
-	(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 60, // epicsThreadPriorityLow,
-						epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
 
 
-	do
-	{
-		step = genslave_cmds + ix;
-		gscmd = step->cmd;
-		strcmd = gsc_cmd_str[(int)gscmd];
-
-		switch( gscmd )
-		{
-			case GSC_CHK_ON_BOOT:
-				break;
-			case GSC_CHK_EVERY:
-				break;
-			case GSC_CHK_ALL_EVERY:
-				break;
-
-			default:
-				break;
-
-		}
-	} while( ++ix < genslave_cmd_no_of_steps );
-*/
-
-	return ERR_NO_ERROR;
-}
-
-
-#define NSEC_PER_SEC	1000000000L
-struct timespec t_sub(struct timespec a, struct timespec b)
-{
-    struct timespec result;
-    result.tv_nsec = a.tv_nsec - b.tv_nsec;
-    result.tv_sec  = a.tv_sec  - b.tv_sec;
-    while(result.tv_nsec < 0)
-    {
-        result.tv_nsec += NSEC_PER_SEC;
-        result.tv_sec  -= 1;
-    }
-    return result;
-}
-
-#define MAX_STIMERS	10
-static struct timespec __tstart[MAX_STIMERS] = { { 0, 0 } },
-					__tend[MAX_STIMERS] = { { 0, 0 } },
-					__tdelta[MAX_STIMERS] = { { 0, 0 } };
-
-
-void st_start( int no )
-{
-	assert( no >= 0 && no < MAX_STIMERS );
-	clock_gettime( CLOCK_MONOTONIC, &__tstart[no] );
-}
-
-void st_end( int no )
-{
-	assert( no >= 0 && no < MAX_STIMERS );
-	clock_gettime( CLOCK_MONOTONIC, &__tend[no] );
-	__tdelta[no] = t_sub( __tend[no], __tstart[no] );
-}
-
-void st_print( int no )
-{
-	assert( no >= 0 && no < MAX_STIMERS );
-
-	printf( "st[%d]: %ld.%09ld", no, __tdelta[no].tv_sec, __tdelta[no].tv_nsec );
-}
 
 
 

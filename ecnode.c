@@ -30,7 +30,7 @@
 #include "ec.h"
 
 
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
 
 ecnode *ecn_add_child( ecnode *parent )
 {
@@ -46,7 +46,7 @@ ecnode *ecn_add_child( ecnode *parent )
 	nnode->parent = parent;
 
 	if( !parent )
-		return nnode; // root
+		return nnode; /* root */
 
 	if( node )
 	{
@@ -112,7 +112,7 @@ int ecn_get_first_free_child_nr_type( ecnode *parent, ECN_TYPE type )
 		if( !found )
 			return trynr;
 		trynr++;
-	} while( trynr < 10000 ); // just in case
+	} while( trynr < 10000 ); /* just in case */
 	perr( "%s: cannot find free node nr (type %d)\n", __func__, type );
 	return -1;
 }
@@ -133,7 +133,7 @@ ecnode *ecn_get_child_nr( ecnode *parent, int nr )
 		sl++;
 		if( n->nr == nr )
 		{
-//			pinfo( "%s: child nr. %d found (%d slaves visited)\n", __func__, nr, sl );
+/*			pinfo( "%s: child nr. %d found (%d slaves visited)\n", __func__, nr, sl ); */
 			return n;
 		}
 	}
@@ -148,7 +148,7 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 	ecnode *n = parent->child;
 	int sl = 0, found_last = 0;
 
-//	pinfo( "%s: called with: last_nr %d\n", __func__, *last_nr );
+/*	pinfo( "%s: called with: last_nr %d\n", __func__, *last_nr ); */
 
 	if( !parent || !n )
 		perrret( "%s: parent or parent->child NULL\n", __func__ );
@@ -156,11 +156,11 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 	do {
 		sl++;
 
-		// get the very first one
+		/* get the very first one */
 		if( *last_nr < 0 )
 		{
 			*last_nr = n->nr;
-//			pinfo( "%s: child nr. %d found (%d slave nodes visited)\n", __func__, n->nr, sl );
+/*			pinfo( "%s: child nr. %d found (%d slave nodes visited)\n", __func__, n->nr, sl ); */
 			return n;
 		}
 
@@ -173,13 +173,13 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 		if( !found_last )
 			continue;
 
-//		pinfo( "%s: child nr. %d found (%d slave nodes visited)\n", __func__, n->nr, sl );
+/*		pinfo( "%s: child nr. %d found (%d slave nodes visited)\n", __func__, n->nr, sl ); */
 		*last_nr = n->nr;
 		return n;
 	}
 	while( (n = n->next) );
 
-//	pinfo( "%s: child nr. %d not found (%d slave nodes visited)\n", __func__, n->nr, sl );
+/*	pinfo( "%s: child nr. %d not found (%d slave nodes visited)\n", __func__, n->nr, sl ); */
 	return NULL;
 }
 
@@ -274,7 +274,7 @@ ecnode *ecn_get_next_sync_nr(
 	ecnode *slave = ecn_get_child_nr( m, s_nr );
 	if( !slave )
 		perrret( "%s: get slave nr %d failed\n", __func__, s_nr );
-//	pinfo( "%s: called with: slave %d, last_sm_nr %d\n", __func__, s_nr, *last_sm_nr );
+/*	pinfo( "%s: called with: slave %d, last_sm_nr %d\n", __func__, s_nr, *last_sm_nr ); */
 
 	temp = ecn_get_next_child_nr( slave, last_sm_nr );
 	if( !temp )
@@ -294,7 +294,7 @@ void ecn_remove_node( ecnode *node )
 	if( node->path )
 		free( node->path );
 
-	// free domain specific memory
+	/* free domain specific memory */
 	if( node->type == ECNT_DOMAIN )
 	{
 		if( node->ddata.reginfos )

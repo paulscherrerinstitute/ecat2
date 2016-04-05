@@ -58,10 +58,10 @@
 
 #define FREQ_MIN		10
 #define FREQ_MAX		2000000001
-//#define FREQ_DEFAULT	FREQ_1Hz
-//#define FREQ_DEFAULT	FREQ_100Hz
+/*#define FREQ_DEFAULT	FREQ_1Hz */
+/*#define FREQ_DEFAULT	FREQ_100Hz */
 #define FREQ_DEFAULT	FREQ_1000Hz
-//#define FREQ_DEFAULT	FREQ_2000Hz
+/*#define FREQ_DEFAULT	FREQ_2000Hz */
 
 #define DEVICE_NAME "psi_ethercat"
 #define BUF_LEN 80
@@ -80,17 +80,17 @@
 #define IOCTL_MSG_DREG  _IOWR(PSI_ECAT_VERSION_MAGIC, 20, int)
 #define IOCTL_MSG_DOMEXISTS _IOWR(PSI_ECAT_VERSION_MAGIC, 21, int)
 
-//------------------------------------------
+/*------------------------------------------ */
 typedef struct _ecd_master ecd_master;
 typedef struct _ecd_domain ecd_domain;
 typedef struct _ecnode ecnode;
 
 
-//-------------------------------
+/*------------------------------- */
 
 
-//
-//
+/* */
+/* */
 typedef enum  {
 	DCT_NOT_CONFIGURED = 0,
 	DCT_CONFIGURED = 0x01,
@@ -124,15 +124,15 @@ typedef enum {
 
 	REC_LAST,
 } RECTYPE;
-//------------------------------------------
+/*------------------------------------------ */
 
 typedef struct {
 	int offs;
 	int bit;
 	int bitlen;
 
-	int byteoffs; // for .Onn
-	int bytelen; // for .Lnn
+	int byteoffs; /* for .Onn */
+	int bytelen; /* for .Lnn */
 
 	int bitspec;
 	epicsType typespec;
@@ -147,11 +147,11 @@ typedef struct {
 typedef struct _conn_rec {
 	struct _conn_rec *next;
 
-	int ix; // index in rectypes, to speed up printing
+	int ix; /* index in rectypes, to speed up printing */
 	RECTYPE rectype;
 	dbCommon *rec;
 	domain_register *dreg_info;
-	// aai & aao
+	/* aai & aao */
 	int ftvl_len;
 	int ftvl_type;
 } conn_rec;
@@ -194,20 +194,20 @@ struct _ecd_domain {
 
 
     int is_running;
-    int rate; // in microseconds
+    int rate; /* in microseconds */
 
-    char *dmem;    // domain mem
-    char *rmem;    // R mem
-    char *wmem;    // W mem
+    char *dmem;    /* domain mem */
+    char *rmem;    /* R mem */
+    char *wmem;    /* W mem */
     int dallocated;
     int dsize;
 
-    // sts
+    /* sts */
 	epicsMutexId sts_lock;
     int num_of_sts_entries;
     sts_entry *sts;
 
-	// cfg
+	/* cfg */
     DOMAIN_CONFIG_TYPE dcfgtype;
 	int num_of_regs;
 	ec_pdo_entry_reg_t *regs;
@@ -225,7 +225,7 @@ typedef struct _ecd_slave {
 } ecd_slave;
 
 
-//------------------------------------------
+/*------------------------------------------ */
 
 
 struct _ecd_master {
@@ -244,29 +244,29 @@ struct _ecd_master {
 };
 
 
-//-------------------------------------
+/*------------------------------------- */
 typedef enum {
 	ECNT_ERROR = 0,
-	ECNT_ROOT,            // 1
-	ECNT_MASTER,          // 2
-	ECNT_SLAVE,           // 3
-	ECNT_SYNC,            // 4
-	ECNT_PDO,             // 5
-	ECNT_PDO_ENTRY,       // 6
+	ECNT_ROOT,            /* 1 */
+	ECNT_MASTER,          /* 2 */
+	ECNT_SLAVE,           /* 3 */
+	ECNT_SYNC,            /* 4 */
+	ECNT_PDO,             /* 5 */
+	ECNT_PDO_ENTRY,       /* 6 */
 
-	ECNT_DOMAIN,          // 7
-	ECNT_DOMAIN_ENTRY     // 8
+	ECNT_DOMAIN,          /* 7 */
+	ECNT_DOMAIN_ENTRY     /* 8 */
 } ECN_TYPE;
 
-// very flat node structure for
-// easier access to members in code
+/* very flat node structure for */
+/* easier access to members in code */
 struct _ecnode {
 	ECN_TYPE	type;
 	struct _ecnode *parent;
 	struct _ecnode *next;
 	struct _ecnode *child;
 
-	// common
+	/* common */
 	int nr;
 	struct proc_dir_entry *pdire;
 	char *path;
@@ -291,7 +291,7 @@ struct _ecnode {
 	};
 
 
-	// if pdo entry belongs to a domain
+	/* if pdo entry belongs to a domain */
 	ecnode *de_master;
 	ecnode *de_slave;
 	ecnode *de_sync;
@@ -310,7 +310,7 @@ struct _ecnode {
 
 
 
-//-----------------------------------------
+/*----------------------------------------- */
 
 typedef enum {
 	ERR_ERROR = 0,
@@ -389,7 +389,7 @@ typedef struct ecat {
 	IOSCANPVT r_scan;
 	IOSCANPVT w_scan;
 
-	int dnr; // domain nr
+	int dnr; /* domain nr */
 
 	char *mmap_fname;
 
@@ -405,12 +405,12 @@ typedef struct ecat {
 	epicsMutexId health_lock;
 
 	int dsize;
-	epicsThreadId dthread; // domain worker thread
+	epicsThreadId dthread; /* domain worker thread */
 
 	epicsEventId irq;
-	epicsThreadId irqthread; // domain irq thread
+	epicsThreadId irqthread; /* domain irq thread */
 
-	epicsThreadId scthread; // slave check thread
+	epicsThreadId scthread; /* slave check thread */
 
 
 	int test;
@@ -429,7 +429,7 @@ typedef enum {
 } SYSTEM_REC_TYPE;
 
 typedef struct {
-	int system;                   // a system record?
+	int system;                   /* a system record? */
 	SYSTEM_REC_TYPE sysrectype;
 	int nr;
 	int master_nr;

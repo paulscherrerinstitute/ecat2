@@ -50,7 +50,7 @@ int www( void )
 */
 
 ecnode *ecroot = NULL;
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
 #define PRINT_PHYS_CONFIG 0
 
 int master_create_physical_config( ecnode *m )
@@ -108,7 +108,7 @@ int master_create_physical_config( ecnode *m )
 
 		if( slave_is_6692( i ) >= 0 )
     	{
-    		// special case - EL6692
+    		/* special case - EL6692 */
 			printf( PPREFIX "EL6692 at pos %d:\n", i );
 
 	        for( j = 0; j < sync_count; j++ )
@@ -247,7 +247,7 @@ int master_create_physical_config( ecnode *m )
     pinfo( "   Slaves added: %d\n", m->mdata.master_info.slave_count );
 
 
-    //print_pe();
+    /*print_pe(); */
     return 1;
 }
 
@@ -288,7 +288,7 @@ int domain_create_autoconfig( ecnode *d )
 	ecn_count_pdo_entries( ecn_get_child_nr_type( ecroot, 0, ECNT_MASTER ), &ndc );
 	if( !ndc )
 		perrret( "%s: No PDO entries found, cancelling autoconfig domain\n", __func__ );
-//	pinfo( "Domain autoconfig: found %d entries\n", ndc );
+/*	pinfo( "Domain autoconfig: found %d entries\n", ndc ); */
 
     if( !(d->ddata.regs = (ec_pdo_entry_reg_t *)calloc( ndc+1, sizeof(ec_pdo_entry_reg_t) )) )
         perrret( "%s: Memory allocation for domain config failed\n", __func__ );
@@ -419,21 +419,21 @@ ecnode *add_domain( ecnode *m, int rate )
         perrret( "%s: memory allocation for domain config failed\n", __func__ );
     if( !(d->ddata.wmem = (char *)calloc( 1, size )) )
         perrret( "%s: memory allocation for domain config failed\n", __func__ );
-//	pinfo( "%s: domain size %d bytes (allocated %d pages, %d bytes)\n", __func__, d->ddata.dsize, size/EC_PAGE_SIZE, size );
+/*	pinfo( "%s: domain size %d bytes (allocated %d pages, %d bytes)\n", __func__, d->ddata.dsize, size/EC_PAGE_SIZE, size ); */
 
 
 #ifdef DOMAIN_EXT_MEM
 	ecrt_domain_external_memory( d->domain_t, d->ddata.dmem );
 #endif
 
-	//domain_print_autoconfig( d );
+	/*domain_print_autoconfig( d ); */
 	d->ddata.rate = rate;
 
 #if 1
     if( ecrt_master_activate( m->mdata.master ) )
 		perrret( "Master %d activation failed\n", m->nr );
 
-//    st_start( 0 );
+/*    st_start( 0 ); */
 
 #ifndef DOMAIN_EXT_MEM
 	d->ddata.dmem = (char *)ecrt_domain_data( d->domain_t );

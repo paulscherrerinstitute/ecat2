@@ -18,7 +18,7 @@
  *
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with the IgH EtherCAT master userspace library. If not, see
- *  <http://www.gnu.org/licenses/>.
+ *  <http:/www.gnu.org/licenses/>.
  *
  *  ---
  *
@@ -125,9 +125,9 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #else
-#include <stdlib.h> // for size_t
+#include <stdlib.h> /* for size_t */
 #include <stdint.h>
-#include <sys/time.h> // for struct timeval
+#include <sys/time.h> /* for struct timeval */
 #endif
 
 /******************************************************************************
@@ -582,7 +582,7 @@ ec_master_t *ecrt_open_master(
         unsigned int master_index /**< Index of the master to request. */
         );
 
-#endif // #ifndef __KERNEL__
+#endif /* #ifndef __KERNEL__ */
 
 /** Releases a requested EtherCAT master.
  *
@@ -615,7 +615,7 @@ int ecrt_master_reserve(
         ec_master_t *master /**< EtherCAT master */
         );
 
-#endif // #ifndef __KERNEL__
+#endif /* #ifndef __KERNEL__ */
 
 #ifdef __KERNEL__
 
@@ -1223,15 +1223,15 @@ void ecrt_slave_config_pdo_mapping_clear(
  * reserve the complete process data, even if the slave is not present at
  * configuration time:
  *
- * \code
+ *
  * ec_pdo_entry_info_t el3162_channel1[] = {
- *     {0x3101, 1,  8}, // status
- *     {0x3101, 2, 16}  // value
+ *     {0x3101, 1,  8},
+ *     {0x3101, 2, 16}
  * };
  *
  * ec_pdo_entry_info_t el3162_channel2[] = {
- *     {0x3102, 1,  8}, // status
- *     {0x3102, 2, 16}  // value
+ *     {0x3102, 1,  8},
+ *     {0x3102, 2, 16}
  * };
  *
  * ec_pdo_info_t el3162_pdos[] = {
@@ -1246,7 +1246,7 @@ void ecrt_slave_config_pdo_mapping_clear(
  * };
  *
  * if (ecrt_slave_config_pdos(sc_ana_in, EC_END, el3162_syncs)) {
- *     // handle error
+ *
  * }
  * \endcode
  *
@@ -1257,8 +1257,8 @@ void ecrt_slave_config_pdo_mapping_clear(
  *
  * \code
  * ec_pdo_info_t pdos[] = {
- *     {0x1600}, // Channel 1
- *     {0x1601}  // Channel 2
+ *     {0x1600},  Channel 1
+ *     {0x1601}   Channel 2
  * };
  *
  * ec_sync_info_t syncs[] = {
@@ -1266,7 +1266,7 @@ void ecrt_slave_config_pdo_mapping_clear(
  * };
  *
  * if (ecrt_slave_config_pdos(slave_config_ana_in, 1, syncs)) {
- *     // handle error
+ *     handle error
  * }
  * \endcode
  *

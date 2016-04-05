@@ -30,7 +30,7 @@
 #define ECENGINE_H
 
 
-//---------------------------------
+/*--------------------------------- */
 void ec_worker_thread( void *data );
 void ec_irq_thread( void *data );
 
@@ -58,7 +58,7 @@ int drvSetBlock(
 		int len
 );
 
-//---------------------------------
+/*--------------------------------- */
 
 
 

@@ -27,7 +27,7 @@
 
 #include "ec.h"
 
-//----------------------------------------------------------------------------------------------
+/*---------------------------------------------------------------------------------------------- */
 
 
 
@@ -41,7 +41,7 @@ typedef struct _dev_ethercat_private {
 
 	ecnode *pe;
 
-	// aai & aao
+	/* aai & aao */
 	int ftvl_len;
 	int ftvl_type;
 
@@ -101,7 +101,7 @@ static int dev_get_record_bitlen( dbCommon *prec )
 					case REC_STRINGIN:
 					case REC_STRINGOUT:
 										return p->dreg_info.bytelen * 8;
-					default: // including default as well, in order to satisfy gcc...
+					default: /* including default as well, in order to satisfy gcc... */
 										return 0;
 				}
 			}
@@ -168,6 +168,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 
 	if( !p->sysrecdata.system )
 	{
+		/* system health records get special attention */
 		rec_bitlen = dev_get_record_bitlen( prec );
 		if( rec_bitlen < 1 )
 			return S_dev_badArgument;
@@ -191,7 +192,7 @@ static long dev_get_ioint_info( int dir, dbCommon *prec, IOSCANPVT *io)
 	{
 		case RIO_READ: 	*io = e->r_scan; break;
 		case RIO_WRITE:	*io = e->w_scan; break;
-		default:		return S_dev_success; // to supress gcc warning
+		default:		return S_dev_success; /* to supress gcc warning */
 	}
 
 	printf( ", %d I/O Intr records total so far\n", ++irq_rec );
@@ -387,7 +388,7 @@ static int parse_datatype_get_type( char *token, char **name )
 
 	while( datatypes[++ix].name )
 		if( !strcmp( token+1, datatypes[ix].name ) ||
-				!strcmp( token+2, datatypes[ix].name ) ) // to allow both Ttype and T=type for regDev compatibility
+				!strcmp( token+2, datatypes[ix].name ) ) /* to allow both Ttype and T=type for regDev compatibility */
 		{
 			if( name )
 				*name = datatypes[ix].name;
@@ -413,36 +414,36 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 		return S_dev_badArgument;
 	}
 
-	// Possible INP/OUT links:
-	//
-	// dDaa.Rbb[.Bcc]              : domain register nn, optional bit cc
-	// Saa.LRbb                    : slave aa, local register bb
-	// Saa.SMbb.Pcc.Edd            : pdo entry a.b.c.d
-	// Saa.SMbb.Pcc.Edd.Bee        : pdo entry a.b.c.d, optional bit ee
-	// Saa.SMbb.Pcc.Edd.Lnn        : pdo entry a.b.c.d, optional string len nn
-	// Saa.SMbb.Pcc.Edd.Oee[.Lnn]  : pdo entry a.b.c.d, optional rel. offset ee, optional string len nn
-	//
-	// Extensions:
-	//
-	// T<type>                     :
-	//                        8-bit: int8, uint8, char, uchar, byte ubyte
-	//                       16-bit: int16, uint16, word, uword, short, ushort, i16, ui16
-	//                       32-bit: int, uint, int32, uint32, i32, ui32, dword, udword
-	//                       64-bit: long, ulong, int64, uint64, qword, uqword
-	//               (float) 32-bit: float, single, real32, float32
-	//               (float) 64-bit: double, real64, float64
-	//                  (bcd) 8-bit: bcd8, bcd
-	//                 (bcd) 16-bit: bcd16
-	//                 (bcd) 32-bit: bcd32
-	//                 (time) 8-bit: time (regDev backward compatibility)
-	//
-	// System:
-	//
-	// [Mnn] M_STATUS  			: Master nn health
-	// [Mnn] S_STATUS  			: Aggregation of health indicators of all slaves
-	// [Mnn] L_STATUS  			: Master nn link-up status
-	// [Mnn] S_OP_STATUS Smm 	: OP status for a slave
-	//
+	/* Possible INP/OUT links: */
+	/* */
+	/* dDaa.Rbb[.Bcc]              : domain register nn, optional bit cc */
+	/* Saa.LRbb                    : slave aa, local register bb */
+	/* Saa.SMbb.Pcc.Edd            : pdo entry a.b.c.d */
+	/* Saa.SMbb.Pcc.Edd.Bee        : pdo entry a.b.c.d, optional bit ee */
+	/* Saa.SMbb.Pcc.Edd.Lnn        : pdo entry a.b.c.d, optional string len nn */
+	/* Saa.SMbb.Pcc.Edd.Oee[.Lnn]  : pdo entry a.b.c.d, optional rel. offset ee, optional string len nn */
+	/* */
+	/* Extensions: */
+	/* */
+	/* T<type>                     : */
+	/*                        8-bit: int8, uint8, char, uchar, byte ubyte */
+	/*                       16-bit: int16, uint16, word, uword, short, ushort, i16, ui16 */
+	/*                       32-bit: int, uint, int32, uint32, i32, ui32, dword, udword */
+	/*                       64-bit: long, ulong, int64, uint64, qword, uqword */
+	/*               (float) 32-bit: float, single, real32, float32 */
+	/*               (float) 64-bit: double, real64, float64 */
+	/*                  (bcd) 8-bit: bcd8, bcd */
+	/*                 (bcd) 16-bit: bcd16 */
+	/*                 (bcd) 32-bit: bcd32 */
+	/*                 (time) 8-bit: time (regDev backward compatibility) */
+	/* */
+	/* System: */
+	/* */
+	/* [Mnn] M_STATUS  			: Master nn health */
+	/* [Mnn] S_STATUS  			: Aggregation of health indicators of all slaves */
+	/* [Mnn] L_STATUS  			: Master nn link-up status */
+	/* [Mnn] S_OP_STATUS Smm 	: OP status for a slave */
+	/* */
 	for( i = 0; i < EPT_MAX_TOKENS; i++ )
 		token_num[i] = -1;
 	for( i = 0; i < ntokens; i++ )
@@ -526,7 +527,7 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
 	if( token_num[D_NUM] < 0 )
 		token_num[D_NUM] = 0;
 
-	// type has priority over length
+	/* type has priority over length */
 	if( token_num[T_NUM] > -1 )
 		token_num[L_NUM] = -1;
 
@@ -537,7 +538,7 @@ int parse_str( char *s, ethcat **e, ecnode **pe, int *dreg_nr, domain_register *
         return ERR_BAD_ARGUMENT;
     }
 
-	// check to see what kind of INP/OUT info was discovered
+	/* check to see what kind of INP/OUT info was discovered */
 
 	if( (srdata->system = (srdata->sysrectype != SRT_ERROR)) )
 	{
@@ -662,11 +663,11 @@ if( priv->sysrecdata.system )																					\
 
 
 
-//----------------------------------------------------------
-//
-// ai
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* ai                                                        */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_ai( aiRecord *record )
 {
@@ -685,7 +686,7 @@ long dev_rw_ai( aiRecord *record )
    	    if( !status )
    	    {
    	    	record->udf = 0;
-   	    	return 2; // Jedi mind trick: tell EPICS not to perform conversion
+   	    	return 2; /* Jedi mind trick: tell EPICS not to perform conversion */
    	    }
    	}
    	else
@@ -721,11 +722,11 @@ long dev_special_linconv_ai( aiRecord *record, int after )
 
 
 
-//----------------------------------------------------------
-//
-// ao
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* ao                                                        */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_ao( aoRecord *record )
 {
@@ -772,11 +773,11 @@ long dev_special_linconv_ao( aoRecord* record, int after )
 
 
 
-//----------------------------------------------------------
-//
-// bi
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* bi                                                        */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_bi( biRecord *record )
 {
@@ -797,11 +798,11 @@ long dev_rw_bi( biRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// bo
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* bo                                                        */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_bo( boRecord *record )
 {
@@ -820,11 +821,11 @@ long dev_rw_bo( boRecord *record )
 }
 
 
-//----------------------------------------------------------
-//
-// mbbi
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* mbbi                                                      */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_mbbi( mbbiRecord *record )
 {
@@ -843,11 +844,11 @@ long dev_rw_mbbi( mbbiRecord *record )
 }
 
 
-//----------------------------------------------------------
-//
-// mbbo
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* mbbo                                                      */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_mbbo( mbboRecord *record )
 {
@@ -867,11 +868,11 @@ long dev_rw_mbbo( mbboRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// longin
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* longin                                                    */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_longin( longinRecord *record )
 {
@@ -885,7 +886,7 @@ long dev_rw_longin( longinRecord *record )
     status = drvGetValue( priv->e, priv->dreg_info.offs, priv->dreg_info.bit,
     								(epicsUInt32 *)&(record->val), priv->dreg_info.bitlen, priv->dreg_info.bitspec, priv->dreg_info.byteoffs, priv->dreg_info.bytelen );
 
-    // apply typespec conversion, if any
+    /* apply typespec conversion, if any */
     switch( priv->dreg_info.typespec )
     {
 		case epicsInt8T:		record->val = (epicsInt8)record->val; break;
@@ -904,11 +905,11 @@ long dev_rw_longin( longinRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// longout
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* longout                                                   */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_longout( longoutRecord *record )
 {
@@ -919,7 +920,7 @@ long dev_rw_longout( longoutRecord *record )
    	CHECK_RECINIT;
   	NO_SYSTEM_RECORD;
 
-    // apply typespec conversion, if any
+    /* apply typespec conversion, if any */
     switch( priv->dreg_info.typespec )
     {
 		case epicsInt8T:		record->val = (epicsInt8)record->val; break;
@@ -942,11 +943,11 @@ long dev_rw_longout( longoutRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// stringin
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* stringin                                                  */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_stringin( stringinRecord *record )
 {
@@ -966,11 +967,11 @@ long dev_rw_stringin( stringinRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// stringout
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* stringout                                                 */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_stringout( stringoutRecord *record )
 {
@@ -989,11 +990,11 @@ long dev_rw_stringout( stringoutRecord *record )
 }
 
 
-//----------------------------------------------------------
-//
-// aai
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* aai                                                       */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 
 
@@ -1026,11 +1027,11 @@ long dev_rw_aai( aaiRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// aao
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* aao                                                       */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 long dev_rw_aao( aaoRecord *record )
 {
@@ -1062,11 +1063,11 @@ long dev_rw_aao( aaoRecord *record )
 
 
 
-//----------------------------------------------------------
-//
-// INIT
-//
-//----------------------------------------------------------
+/*---------------------------------------------------------- */
+/*                                                           */
+/* INIT                                                      */
+/*                                                           */
+/*---------------------------------------------------------- */
 
 static void add_record( int ix, devethercat_private *priv, dbCommon *record )
 {
@@ -1090,7 +1091,7 @@ static void add_record( int ix, devethercat_private *priv, dbCommon *record )
 	}
 
 
-    // is this rec already registered?
+    /* is this rec already registered? */
     for( cr = &priv->pe->cr; *cr; cr = &(*cr)->next )
     	if( (*cr)->rec == record )
     	{
@@ -1146,7 +1147,7 @@ static int get_ftvl_len( dbCommon* record, int ftvl )
 static int init_aa( devethercat_private *priv, aaiRecord *record, RECTYPE rectype, DBLINK *reclink )
 {
 	record->bptr = NULL;
-	// sets dtype and dlen
+	/* sets dtype and dlen */
 	if( get_ftvl_len( (dbCommon*)record, record->ftvl ) != OK )
 		return NOTOK;
 	if( (record->nord = record->nelm) < 1 )
@@ -1290,7 +1291,7 @@ long dev_init_record(
 	if( !priv->sysrecdata.system )
 	{
 		bitsp[0] = bitsp2[0] = bitsp3[0] = blen[0] = boffs[0] = 0;
-		// make a somewhat prettier printout
+		/* make a somewhat prettier printout */
 		if( priv->dreg_info.bitspec >= 0 )
 		{
 			sprintf( bitsp, ".b%d", priv->dreg_info.bitspec );

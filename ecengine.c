@@ -235,7 +235,7 @@ int drvSetValue( ethcat *e, int offs, int bit, epicsUInt32 *val, int bitlen, int
 				if( bitlen < 1 || bitlen > 8 )
 				{
 					errlogSevPrintf( errlogFatal, "%s: bitlen %d not allowed\n", __func__, bitlen );
-					retv = 1; // error, unaligned field
+					retv = 1; /* error, unaligned field */
 					break;
 				}
 				break;
@@ -891,7 +891,7 @@ inline int irq_values_changed( ethcat *ec )
 {
 	register int mask;
 	register int i, len = ec->d->ddata.dsize / sizeof(int);
-	register int *irqmask = (int *)ec->irq_r_mask,  // using int for faster cmp
+	register int *irqmask = (int *)ec->irq_r_mask,  /* using int for faster cmp */
 					*rmem = (int *)ec->d->ddata.rmem,
 					*dmem = (int *)ec->d->ddata.dmem;
 
@@ -904,7 +904,7 @@ inline int irq_values_changed( ethcat *ec )
 	return 0;
 }
 
-//#define PRINT_DEBUG_TIMING
+/*#define PRINT_DEBUG_TIMING */
 
 #ifdef PRINT_DEBUG_TIMING
 static int use_dt_1 = 0,
@@ -971,7 +971,7 @@ void ec_worker_thread( void *data )
 
 	ec->d->ddata.is_running = 1;
 
-	//----------------------
+	/*---------------------- */
 	while( 1 )
 	{
 

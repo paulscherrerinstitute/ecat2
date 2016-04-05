@@ -84,11 +84,11 @@ enum dmmDBG {
 };
 
 
-//---------------------------------
+/*--------------------------------- */
 
-//#define DEBUG_FNCALLED
-//#define DEBUG_FNCALLED_2
-//#define DEBUG_FNCALLED_3
+/*#define DEBUG_FNCALLED */
+/*#define DEBUG_FNCALLED_2 */
+/*#define DEBUG_FNCALLED_3 */
 
 #ifdef DEBUG_FNCALLED
 	#define FN_CALLED   { printf( PPREFIX "%s called (%s, line %d)\n", __func__, __FILE__, __LINE__ ); }
@@ -109,7 +109,7 @@ enum dmmDBG {
 #endif
 
 
-//---------------------------------
+/*--------------------------------- */
 void st_start( int no );
 void st_end( int no );
 void st_print( int no );

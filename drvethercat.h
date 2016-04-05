@@ -54,14 +54,14 @@ typedef struct {
 
 
 
-//------------------------------------------------------
+/*------------------------------------------------------ */
 #define EC_MAX_NUM_DEVICES 1
 #define EC_DATAGRAM_NAME_SIZE 20
 /** Size of the EtherCAT address field. */
 #define EC_ADDR_LEN 4
 #define EC_MAX_DOMAINS	10
 
-//------------------------------------------------------
+/*------------------------------------------------------ */
 
 void process_hooks( initHookState state );
 

@@ -29,7 +29,7 @@
 
 #include "ec.h"
 
-//-------------------------------------------------------------------
+/*------------------------------------------------------------------- */
 
 
 #define ECAT_TNAME_D	"ecat_dom"
@@ -62,11 +62,11 @@ static inline void *_zalloc( int size )
 
 
 
-//------------------------------------------------------------
-//
-// Hooks
-//
-//------------------------------------------------------------
+/*------------------------------------------------------------ */
+/*                                                             */
+/* Hooks                                                       */
+/*                                                             */
+/*------------------------------------------------------------ */
 
 void process_hooks( initHookState state )
 {
@@ -82,14 +82,14 @@ void process_hooks( initHookState state )
 					return;
 				workthreadsrunning = 1;
 
-				// unfortunately, this below does not help,
-				// it only delays the inevitable callback buffer overrun
-				//callbackSetQueueSize( 1000000 );
+				/* unfortunately, this below does not help, */
+				/* it only delays the inevitable callback buffer overrun */
+				/*callbackSetQueueSize( 1000000 ); */
 
-				// start various threads
+				/* start various threads */
 				for( ec = &ecatList; *ec; ec = &(*ec)->next )
 				{
-					(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 80, // epicsThreadPriorityLow,
+					(*ec)->dthread = epicsThreadMustCreate( ECAT_TNAME_D, 80, /* epicsThreadPriorityLow, */
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_worker_thread, *ec );
 					(*ec)->irqthread = epicsThreadMustCreate( ECAT_TNAME_IRQ, epicsThreadPriorityLow,
 										epicsThreadGetStackSize(epicsThreadStackSmall), &ec_irq_thread, *ec );
@@ -109,7 +109,7 @@ void process_hooks( initHookState state )
 
 
 
-//--------------------------------------------------------------------
+/*-------------------------------------------------------------------- */
 ethcat *ethercatOpen( int domain_nr )
 {
 	ethcat *e;
@@ -371,7 +371,7 @@ long drvethercatConfigure(
 
 	FN_CALLED;
 
-    // check arguments
+    /* check arguments */
     if( domain_nr < 0 ||
     	freq < 0.001 || freq > 15000.0 ||
     	autoconfig < 0 || autoconfig > 1 ||
@@ -399,8 +399,8 @@ long drvethercatConfigure(
     if( !ecroot )
     {
 
-		//---------------------------------
-		// create root and master
+		/*--------------------------------- */
+		/* create root and master */
 		ecroot = ecn_add_child_type( NULL, ECNT_ROOT );
 		if( !ecroot )
 		{
@@ -413,7 +413,7 @@ long drvethercatConfigure(
 
     if( !ecroot->child )
     {
-		// currently fixed to a single master
+		/* currently fixed to a single master */
 		m = ecn_add_child_type( ecroot, ECNT_MASTER );
 		if( !m )
 		{
@@ -423,7 +423,7 @@ long drvethercatConfigure(
 
 		m->nr = 0;
 
-		// allocate a master
+		/* allocate a master */
 	    pinfo( "Requesting master..." );
 	    if( !(m->mdata.master = ecrt_request_master( 0 )) )
 	        perrret( "\nRequesting master 0 failed. EtherCAT Master not running or not responding.\n" );
@@ -432,17 +432,17 @@ long drvethercatConfigure(
     else
     	m = ecroot->child;
 
-    //--------------------------
-    //
-    // slave config
-    //
-    //--------------------------
+    /*-------------------------- */
+    /*                           */
+    /* slave config              */
+    /*                           */
+    /*-------------------------- */
     printf( PPREFIX "Configuring EL6692 entries start...\n" );
     configure_el6692_entries( m->mdata.master );
     printf( PPREFIX "Configuring EL6692 entries end.\n" );
 
 
-    // query master about the current config
+    /* query master about the current config */
     if( !master_create_physical_config( m ) )
     {
 		errlogSevPrintf( errlogFatal, "%s: creating master config failed\n", __func__ );
@@ -459,10 +459,10 @@ long drvethercatConfigure(
     printf( PPREFIX "Configuring slave(s) end.\n" );
 
 
-	//---------------------------------
-    // create and init domain
+	/*--------------------------------- */
+    /* create and init domain           */
 
-    // is this domain already registered?
+    /* is this domain already registered? */
     for( ec = &ecatList; *ec; ec = &(*ec)->next )
     	if( (*ec)->dnr == domain_nr )
     	{
@@ -488,7 +488,7 @@ long drvethercatConfigure(
 	(*ec)->irq = epicsEventMustCreate( epicsEventEmpty );
 
 
-	//----------------------------------
+	/*---------------------------------- */
 	if( !((*ec)->d = add_domain( m, (*ec)->rate )) )
 	{
 		errlogSevPrintf( errlogFatal, "%s: Domain init and autoconfig failed.\n", __func__ );
@@ -511,15 +511,15 @@ long drvethercatConfigure(
 		return ERR_OUT_OF_MEMORY;
 	}
 
-	//----------------------------------
-	// init irq scanning
+	/*---------------------------------- */
+	/* init irq scanning */
     scanIoInit( &((*ec)->r_scan) );
     scanIoInit( &((*ec)->w_scan) );
 
-    // register atexit callback
-    //epicsAtExit( drvethercatAtExit, *ec );
+    /* register atexit callback */
+    /*epicsAtExit( drvethercatAtExit, *ec ); */
 
-	//----------------------------------
+	/*---------------------------------- */
 	printf( PPREFIX "\n" );
 	printf( PPREFIX "Domain %d\n", domain_nr );
 	printf( PPREFIX "Domain frequency %.1f Hz (1 network packet sent every %f ms)\n", freq, (double)((*ec)->rate)/(double)1000000 );
@@ -550,10 +550,10 @@ long drvethercatConfigure(
 /*                                                                   */
 /*-------------------------------------------------------------------*/
 
-//----------------------
-//
-// Configure
-//
+/*---------------------- */
+/*                       */
+/* Configure             */
+/*                       */
 static const iocshArg drvethercatConfigureArg0 = { "domainnr", 		iocshArgInt };
 static const iocshArg drvethercatConfigureArg1 = { "freq", 			iocshArgDouble };
 static const iocshArg drvethercatConfigureArg2 = { "autoconfig",	iocshArgInt };
@@ -578,11 +578,11 @@ static void drvethercatConfigureFunc( const iocshArgBuf *args )
     );
 }
 
-//----------------------
-//
-// dmap
-//
-//----------------------
+/*---------------------- */
+/*                       */
+/* dmap                  */
+/*                       */
+/*---------------------- */
 static const iocshArg drvethercatDMapArg0 = { "cmd", 		iocshArgString };
 static const iocshArg * const drvethercatDMapArgs[] = {
     &drvethercatDMapArg0,
@@ -600,11 +600,11 @@ static void drvethercatDMapFunc( const iocshArgBuf *args )
 
 
 
-//----------------------
-//
-// stat
-//
-//----------------------
+/*---------------------- */
+/*                       */
+/* stat                  */
+/*                       */
+/*---------------------- */
 static const iocshArg drvethercatstatArg0 = { "dnr", 		iocshArgInt };
 static const iocshArg * const drvethercatstatArgs[] = {
     &drvethercatstatArg0
@@ -621,11 +621,11 @@ static void drvethercatStatFunc( const iocshArgBuf *args )
 }
 
 
-//----------------------
-//
-// ecat2cfgEL6692
-//
-//----------------------
+/*---------------------- */
+/*                       */
+/* ecat2cfgEL6692        */
+/*                       */
+/*---------------------- */
 static const iocshArg drvethercatConfigEL6692Arg[] = {
 		{ "slave_pos",  	iocshArgInt },
 		{ "io",  			iocshArgString },
@@ -652,11 +652,11 @@ static void drvethercatConfigEL6692Func( const iocshArgBuf *args )
 #endif
 
 
-//----------------------
-//
-// ecat2sts
-//
-//----------------------
+/*---------------------- */
+/*                       */
+/* ecat2sts              */
+/*                       */
+/*---------------------- */
 static const iocshArg drvethercatStSArg[] = {
 		{ "from",  	iocshArgString },
 		{ "to",  	iocshArgString },
@@ -678,11 +678,36 @@ static void drvethercatStSFunc( const iocshArgBuf *args )
 }
 
 
-//----------------------
-//
-// ecat2cfgslave
-//
-//----------------------
+
+/*---------------------- */
+/*                       */
+/* si                    */
+/*                       */
+/*---------------------- */
+static const iocshArg _si_args[] = {
+		{ "level",  	iocshArgInt },
+};
+static const iocshArg *const si_args[] = {
+    &_si_args[0],
+    &_si_args[1],
+};
+
+static const iocshFuncDef si_fndef =
+    { "ecat2sts", 2, si_args };
+
+static void si_fn( const iocshArgBuf *args )
+{
+    si(
+        args[0].ival
+    );
+}
+
+
+/*---------------------- */
+/*                       */
+/* ecat2cfgslave         */
+/*                       */
+/*---------------------- */
 
 
 static const iocshArg drvethercatcfgslaveArg[] = {
@@ -722,62 +747,16 @@ static void drvethercatcfgslaveFunc( const iocshArgBuf *args )
 }
 
 
-//----------------------
-//
-// ecat2slave (genslave)
-//
-//----------------------
-
-
-static const iocshArg drvethercatgenslaveArg[] = {
-		{ "cmd",  				iocshArgString },
-		{ "arg1",  				iocshArgInt },
-		{ "arg2",	  			iocshArgInt },
-		{ "arg3",  				iocshArgInt },
-		{ "arg4",				iocshArgInt },
-		{ "arg5",				iocshArgInt },
-		{ "arg6",				iocshArgInt },
-
-};
-static const iocshArg *const drvethercatgenslaveArgs[] = {
-    &drvethercatgenslaveArg[0],
-    &drvethercatgenslaveArg[1],
-    &drvethercatgenslaveArg[2],
-    &drvethercatgenslaveArg[3],
-    &drvethercatgenslaveArg[4],
-    &drvethercatgenslaveArg[5],
-    &drvethercatgenslaveArg[6],
-};
-
-static const iocshFuncDef drvethercatgenslaveDef =
-    { "ecat2cfgslave", 7, drvethercatgenslaveArgs };
-
-/*
-static void drvethercatgenslaveFunc( const iocshArgBuf *args )
-{
-    genslave(
-        args[0].sval,
-        args[1].ival,
-        args[2].ival,
-        args[3].ival,
-        args[4].ival,
-        args[5].ival,
-        args[6].ival
-    );
-}
-*/
 
 
 
 
 
-
-
-//=====================================================
-//
-// EPICS support structures
-//
-//=====================================================
+/*===================================================== */
+/*                                                      */
+/* EPICS support structures                             */
+/*                                                      */
+/*===================================================== */
 
 static void drvethercat2_registrar()
 {
@@ -787,6 +766,7 @@ static void drvethercat2_registrar()
 	iocshRegister( &drvethercatConfigEL6692Def, drvethercatConfigEL6692Func );
     iocshRegister( &drvethercatStSDef, drvethercatStSFunc );
     iocshRegister( &drvethercatcfgslaveDef, drvethercatcfgslaveFunc );
+    iocshRegister( &si_fndef, si_fn ); /* going for somewhat shorter names from now on :P */
 }
 
 epicsExportRegistrar( drvethercat2_registrar );
