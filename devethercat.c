@@ -101,6 +101,7 @@ static int dev_get_record_bitlen( dbCommon *prec )
 					case REC_STRINGIN:
 					case REC_STRINGOUT:
 										return p->dreg_info.bytelen * 8;
+
 					default: /* including default as well, in order to satisfy gcc... */
 										return 0;
 				}
