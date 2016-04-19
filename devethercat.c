@@ -1358,7 +1358,7 @@ long dev_init_record(
 				);
 	}
 
-    return 0;
+    return retv;
 
 }
 
