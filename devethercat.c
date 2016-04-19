@@ -1168,7 +1168,7 @@ long dev_init_record(
 {
   	devethercat_private *priv;
   	DBLINK *reclink;
-  	int ix = 0;
+  	int ix = 0, retv = 0;
   	char bitsp[20] = { 0 }, bitsp2[20] = { 0 }, bitsp3[128] = { 0 },
   			boffs[32] = { 0 }, blen[32] = { 0 }, *msg;
   	RECTYPE rectype = dev_get_record_type( record, &ix );
@@ -1205,6 +1205,7 @@ long dev_init_record(
 
     	case REC_BO:
 						PARSE_IO_STR( bo, out );
+						retv = 2; // init output rec without RVAL (for ASR)
     					break;
 
     	case REC_MBBI:
@@ -1219,6 +1220,7 @@ long dev_init_record(
 						priv->dreg_info.nobt = ((mbboRecord *)record)->nobt;
 						priv->dreg_info.shft = ((mbboRecord *)record)->shft;
 						priv->dreg_info.mask = ((mbboRecord *)record)->mask << ((mbboRecord *)record)->shft;
+						retv = 2; // init output rec without RVAL (for ASR)
     					break;
 
     	case REC_LONGIN:
@@ -1259,6 +1261,7 @@ long dev_init_record(
 
 	if( !priv->sysrecdata.system )
 	{
+		// normal, non-system records
 		bitsp[0] = bitsp2[0] = bitsp3[0] = blen[0] = boffs[0] = 0;
 		// make a somewhat prettier printout
 		if( priv->dreg_info.bitspec >= 0 )
@@ -1308,11 +1311,13 @@ long dev_init_record(
 	}
 	else
 	{
+		// system health records
 		msg = parse_system_keywords[(int)priv->sysrecdata.sysrectype-1] ? parse_system_keywords[(int)priv->sysrecdata.sysrectype-1] : "unknown type";
 		if( priv->sysrecdata.sysrectype == SRT_S_OP_STATUS )
 			sprintf( blen, " (m%d.s%d)", priv->sysrecdata.master_nr, priv->sysrecdata.nr );
 		else
 			sprintf( blen, " (m%d)", priv->sysrecdata.master_nr );
+
 		printf( PPREFIX "configured record %s (%s) as %s%s system record\n",
 				record->name,
 				record->rdes->name,
