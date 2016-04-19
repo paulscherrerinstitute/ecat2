@@ -50,7 +50,7 @@
 #include <features.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-
+#include <linux/types.h>
 
 
 #include <devLib.h>
