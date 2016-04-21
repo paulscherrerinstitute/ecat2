@@ -156,7 +156,6 @@ struct timespec t_sub(struct timespec a, struct timespec b)
     return result;
 }
 
-#define MAX_STIMERS	10
 static struct timespec __tstart[MAX_STIMERS] = { { 0, 0 } },
 					__tend[MAX_STIMERS] = { { 0, 0 } },
 					__tdelta[MAX_STIMERS] = { { 0, 0 } };
@@ -180,6 +179,13 @@ void st_print( int no )
 	assert( no >= 0 && no < MAX_STIMERS );
 
 	printf( "st[%d]: %ld.%09ld", no, __tdelta[no].tv_sec, __tdelta[no].tv_nsec );
+}
+
+void st_print2( int no )
+{
+	assert( no >= 0 && no < MAX_STIMERS );
+
+	printf( "%ld.%09ld", __tdelta[no].tv_sec, __tdelta[no].tv_nsec );
 }
 
 

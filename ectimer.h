@@ -44,6 +44,14 @@ typedef struct {
 int tmr_init( int tmr_nr, long rate );
 int tmr_wait( int tmr_nr );
 
+/*--------------------------------- */
+#define MAX_STIMERS	50
+
+#define ECT_ECWORK_TOTAL	40
+#define ECT_IRQ				41
+#define ECT_RW 				42
+#define ECT_STS 			43
+
 
 #endif
 

@@ -978,12 +978,20 @@ void ec_worker_thread( void *data )
 		ecrt_master_receive( ecm );
 		ecrt_domain_process( ecd );
 
+			st_start( ECT_ECWORK_TOTAL );
 		epicsMutexMustLock( ec->rw_lock );
+			st_start( ECT_IRQ );
 		chg = irq_values_changed( ec );
+			st_end( ECT_IRQ );
+			st_start( ECT_RW );
 		memcpy( ec->d->ddata.rmem, ec->d->ddata.dmem, ec->d->ddata.dsize );
 		process_write_values( ec->d->ddata.dmem, ec->d, ec->w_mask );
+			st_end( ECT_RW );
+			st_start( ECT_STS );
 		process_sts_entries( ec->d );
+			st_end( ECT_STS );
 		epicsMutexUnlock( ec->rw_lock );
+			st_end( ECT_ECWORK_TOTAL );
 
 		if( chg )
 		{

@@ -539,41 +539,46 @@ int ect_print_stats( int dnr )
 	printf( "PSI EtherCAT driver statistics\n" );
 	printf( "------------------------------\n" );
 
-	printf( "Worker thread:\n" );
-	printf( "           cycles: %lld, rcvd: %lld (%.6f%%), dropped %lld (%.6f%%)\n",
+	printf( "\n" );
+	printf( "               TCP packets sent/received: %lld/%lld (%.6f%%), dropped %lld (%.6f%%)\n",
 				wt_counter[dnr],
 				recd[dnr],
 				(double)100.0*((double)recd[dnr]/(double)(wt_counter[dnr] ? wt_counter[dnr] : 1)),
 				dropped[dnr],
 				(double)100.0*((double)dropped[dnr]/(double)(wt_counter[dnr] ? wt_counter[dnr] : 1))
 				);
-	printf( "       irq cycles: %lld", irqs_executed[dnr] );
+	printf( "                              irq cycles: %lld", irqs_executed[dnr] );
 	if( wt_counter[dnr] > 0 )
 		printf( ", (%f)", (double)irqs_executed[dnr]/(double)wt_counter[dnr] );
 	printf( "\n" );
 
-	printf( "          delayed: %lld\n",  delayed[dnr] );
-	printf( "      microdelays: %lld\n", delayctr_cumulative[dnr] );
-	printf( " avg mdel per del: %f\n", (double)delayctr_cumulative[dnr] / (double)(delayed[dnr] > 0 ? delayed[dnr] : 1) );
+	printf( "                         packets delayed: %lld\n", delayed[dnr] );
+	printf( "                       microdelays total: %lld\n", delayctr_cumulative[dnr] );
+	printf( "  average microdelays per delayed packet: %f\n", (double)delayctr_cumulative[dnr] / (double)(delayed[dnr] > 0 ? delayed[dnr] : 1) );
+
+
+	printf( "\n" );
+	printf( " calculate triggers for I/O Intr records: " ); st_print2( ECT_IRQ );          printf( " sec.\n" );
+	printf( "               process read/write values: " ); st_print2( ECT_RW );           printf( " sec.\n" );
+	printf( "          process slave-to-slave entries: " ); st_print2( ECT_STS );          printf( " sec.\n" );
+	printf( "    total processing (with semlock wait): " ); st_print2( ECT_ECWORK_TOTAL ); printf( " sec.\n" );
 
 
 	epicsMutexMustLock( e->rw_lock );
 	memcpy( packet, d->ddata.dmem, d->ddata.dsize );
 	epicsMutexUnlock( e->rw_lock );
 
-	printf( "                           ============\n" );
-	printf( "                            Domain %d:\n", dnr );
-	printf( "                           ============\n" );
-		printf( "                         Running?: %s \n", d->ddata.is_running ? "Yes" : "No" );
-	printf( "                             Rate: 1 packet every %.2f ms", (double)d->ddata.rate/(double)1000000.0 );
+	printf( "\n" );
+	printf( "                       domain %d running?: %s \n", dnr, d->ddata.is_running ? "yes" : "no" );
+	printf( "                                    rate: 1 packet every %.2f ms", (double)d->ddata.rate/(double)1000000.0 );
 	if( d->ddata.rate > 0 )
 		printf( " (%.1f packets/second)\n", (double)1000000000.0/(double)d->ddata.rate );
 	else
 		printf( " (N/A)\n" );
-	printf( "                 No. of registers: %d \n", d->ddata.num_of_regs );
-	printf( "                  Size (in bytes): %d \n", d->ddata.dsize );
-	printf( "      Memory allocated (in bytes): %d \n", d->ddata.dallocated );
-	printf( "    No. of slave-to-slave entries: %d \n", d->ddata.num_of_sts_entries );
+	printf( "                        no. of registers: %d \n", d->ddata.num_of_regs );
+	printf( "                             domain size: %d bytes\n", d->ddata.dsize );
+	printf( "                 domain memory allocated: %d bytes\n", d->ddata.dallocated );
+	printf( "           no. of slave-to-slave entries: %d \n", d->ddata.num_of_sts_entries );
 
 #if 0
 	printf( "\nDomain %d content (%d bytes):", dnr, d->ddata.dsize );
