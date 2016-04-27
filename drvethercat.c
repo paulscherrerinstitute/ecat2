@@ -693,7 +693,7 @@ static const iocshArg *const si_args[] = {
 };
 
 static const iocshFuncDef si_fndef =
-    { "ecat2sts", 2, si_args };
+    { "ecat2testcmd", 2, si_args };
 
 static void si_fn( const iocshArgBuf *args )
 {
