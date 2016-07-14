@@ -50,19 +50,19 @@ typedef struct _dev_ethercat_private {
 
 _rectype rectypes[] = {
 		{ "ai", 		REC_AI, 			RIO_READ,  sizeof(epicsUInt32) },
-		{ "aai", 		REC_AAI, 			RIO_READ,  -sizeof(epicsUInt32) },
+		{ "aai", 		REC_AAI, 			RIO_READ,  sizeof(epicsUInt32) },
 		{ "bi", 		REC_BI, 			RIO_READ,  1 },
 		{ "mbbi", 		REC_MBBI, 			RIO_READ,  sizeof(epicsUInt32) },
 		{ "mbbiDirect", REC_MBBIDIRECT, 	RIO_READ,  sizeof(epicsUInt32) },
 		{ "longin", 	REC_LONGIN, 		RIO_READ,  sizeof(epicsUInt32) },
-		{ "stringin", 	REC_STRINGIN, 		RIO_READ,  -sizeof(epicsUInt8) },
+		{ "stringin", 	REC_STRINGIN, 		RIO_READ,  sizeof(epicsUInt8) },
 		{ "ao", 		REC_AO, 			RIO_WRITE, sizeof(epicsUInt32) },
-		{ "aao", 		REC_AAO, 			RIO_WRITE, -sizeof(epicsUInt32) },
+		{ "aao", 		REC_AAO, 			RIO_WRITE, sizeof(epicsUInt32) },
 		{ "bo", 		REC_BO, 			RIO_WRITE, 1 },
 		{ "mbbo", 		REC_MBBO, 			RIO_WRITE, sizeof(epicsUInt32) },
 		{ "mbboDirect", REC_MBBODIRECT, 	RIO_WRITE, sizeof(epicsUInt32) },
 		{ "longout", 	REC_LONGOUT, 		RIO_WRITE, sizeof(epicsUInt32) },
-		{ "stringout", 	REC_STRINGOUT, 		RIO_WRITE, -sizeof(epicsUInt8) },
+		{ "stringout", 	REC_STRINGOUT, 		RIO_WRITE, sizeof(epicsUInt8) },
 
 		{ NULL }
 };
@@ -92,21 +92,17 @@ static int dev_get_record_bitlen( dbCommon *prec )
 	for( i = 0; rectypes[i].recname; i++ )
 		if( !strcmp( rectypes[i].recname, prec->rdes->name ) )
 		{
-			if( rectypes[i].bitlen < 0 )
+			switch( rectypes[i].rtype )
 			{
-				switch( rectypes[i].rtype )
-				{
-					case REC_AAI:		return -rectypes[i].bitlen * ((aaiRecord *)prec)->nelm;
-					case REC_AAO:		return -rectypes[i].bitlen * ((aaoRecord *)prec)->nelm;
-					case REC_STRINGIN:
-					case REC_STRINGOUT:
-										return p->dreg_info.bytelen * 8;
+				case REC_AAI:		return rectypes[i].bitlen * ((aaiRecord *)prec)->nelm;
+				case REC_AAO:		return rectypes[i].bitlen * ((aaoRecord *)prec)->nelm;
+				case REC_STRINGIN:
+				case REC_STRINGOUT:
+									return p->dreg_info.bytelen * 8;
 
-					default: /* including default as well, in order to satisfy gcc... */
-										return 0;
-				}
+				default:
+									break;
 			}
-
 			return rectypes[i].bitlen;
 		}
 	return 0;

@@ -723,7 +723,7 @@ thread_out:
 
     while(1)
     {
-		clock_nanosleep( CLOCK_MONOTONIC, 0, &tperiod, NULL );
+    	clock_nanosleep( CLOCK_MONOTONIC, 0, &tperiod, NULL );
 
 		if( ecrt_master( ecm, minfo ) )
         {
@@ -767,10 +767,13 @@ thread_out:
 				if( !ecrt_master_get_slave( ecm, n->nr, &current_sinfo ) )
 				{
 
-					if( config_sinfo->vendor_id 		== current_sinfo.vendor_id 		&&
+					if(
+/*
+						config_sinfo->vendor_id 		== current_sinfo.vendor_id 		&&
 						config_sinfo->product_code 		== current_sinfo.product_code 	&&
 						config_sinfo->revision_number 	== current_sinfo.revision_number &&
 						config_sinfo->serial_number 	== current_sinfo.serial_number 	&&
+*/
 						(current_sinfo.al_state & S_OP)
 						)
 							setto = 1;

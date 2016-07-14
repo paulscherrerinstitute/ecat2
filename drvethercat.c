@@ -398,9 +398,8 @@ long drvethercatConfigure(
 
     if( !ecroot )
     {
-
 		/*--------------------------------- */
-		/* create root and master */
+		/* create root and master           */
 		ecroot = ecn_add_child_type( NULL, ECNT_ROOT );
 		if( !ecroot )
 		{
@@ -424,7 +423,7 @@ long drvethercatConfigure(
 		m->nr = 0;
 
 		/* allocate a master */
-	    pinfo( "Requesting master..." );
+	    pinfo( PPREFIX "Requesting master..." );
 	    if( !(m->mdata.master = ecrt_request_master( 0 )) )
 	        perrret( "\nRequesting master 0 failed. EtherCAT Master not running or not responding.\n" );
 	    pinfo( "succeeded\n" );
@@ -693,7 +692,7 @@ static const iocshArg *const si_args[] = {
 };
 
 static const iocshFuncDef si_fndef =
-    { "ecat2testcmd", 2, si_args };
+    { "si", 1, si_args };
 
 static void si_fn( const iocshArgBuf *args )
 {

@@ -30,25 +30,6 @@
 #include "ec.h"
 
 
-/*
-int www( void )
-{
-  int ch;
-  struct termios oldt, newt;
-
-  printf( "Press any key...\n" );
-  tcgetattr ( STDIN_FILENO, &oldt );
-  newt = oldt;
-  newt.c_lflag &= ~( ICANON | ECHO );
-  tcsetattr ( STDIN_FILENO, TCSANOW, &newt );
-  ch = getchar();
-  tcsetattr ( STDIN_FILENO, TCSANOW, &oldt );
-  printf( "Pressed, continuing\n" );
-
-  return ch;
-}
-*/
-
 ecnode *ecroot = NULL;
 /*------------------------------------------------------------------- */
 #define PRINT_PHYS_CONFIG 0
@@ -244,7 +225,7 @@ int master_create_physical_config( ecnode *m )
     }
 
 
-    pinfo( "   Slaves added: %d\n", m->mdata.master_info.slave_count );
+    pinfo( PPREFIX "Slaves added: %d\n", m->mdata.master_info.slave_count );
 
 
     /*print_pe(); */
@@ -283,12 +264,11 @@ int domain_create_autoconfig( ecnode *d )
 	ec_pdo_entry_reg_t *dc;
 
 	d->ddata.dcfgtype = DCT_NOT_CONFIGURED;
-	pinfo( "%s: Autoconfiguring domain...\n", __func__ );
+	pinfo( PPREFIX  "%s: Autoconfiguring domain...\n", __func__ );
 
 	ecn_count_pdo_entries( ecn_get_child_nr_type( ecroot, 0, ECNT_MASTER ), &ndc );
 	if( !ndc )
 		perrret( "%s: No PDO entries found, cancelling autoconfig domain\n", __func__ );
-/*	pinfo( "Domain autoconfig: found %d entries\n", ndc ); */
 
     if( !(d->ddata.regs = (ec_pdo_entry_reg_t *)calloc( ndc+1, sizeof(ec_pdo_entry_reg_t) )) )
         perrret( "%s: Memory allocation for domain config failed\n", __func__ );
@@ -375,11 +355,11 @@ ecnode *add_domain( ecnode *m, int rate )
 	if( !(d->domain_t = ecrt_master_create_domain( m->mdata.master )) )
         perrret( "%s: Domain creation failed!\n", __func__ );
 
-    pinfo( "%s: Domain %d creation succeeded\n", __func__, d->nr );
+    pinfo( PPREFIX "%s: Domain %d creation succeeded\n", __func__, d->nr );
 
     if( !(nregs = domain_create_autoconfig( d )) )
         return 0;
-	pinfo( "Domain %d: Autoconfig found %d entries\n", d->nr, nregs );
+	pinfo( PPREFIX "Domain %d: Autoconfig found %d entries\n", d->nr, nregs );
 
 #if 0
 	int i;

@@ -679,14 +679,19 @@ ec_sync_info_t el6692_syncs[] = {
 void configure_el6692_entries(  ec_master_t *master )
 {
 	el6692 **mod;
-	int i;
+	int i, prt = 0;
 	ec_pdo_entry_info_t *info;
 	ec_slave_config_t *sc;
 
 
-	printf( PPREFIX "EL6692 entry list:\n" );
 	for( mod = &el6692s; *mod; mod = &((*mod)->next) )
 	{
+		if( !prt )
+		{
+			/* print once */
+			printf( PPREFIX "EL6692 entry list:\n" );
+			prt = 1;
+		}
 		printf( "   EL6692 @ position %d:  OUT/Rx %d entries, IN/Tx %d entries\n",
 				(*mod)->slave_pos,
 				(*mod)->no_el6692_rx_entries,
@@ -1472,7 +1477,6 @@ EC_ERR execute_configuration_prg( void )
 						ecrt_slave_config_pdo_mapping_clear( sc, pdo_ix_dir );
 
 						pdo = ecn_get_child_pdo_t_index_type( sm, pdo_ix_dir, ECNT_PDO );
-						pdo->pdo_t.n_entries = 0;
 
 #if PRINT_CFG_INFO
 						printf( PPREFIX "cfgslave cmd '%s': slave %d, sm %d, pdo 0x%04x has been executed.\n",
@@ -1619,9 +1623,210 @@ long cfgslave( char *cmd, int slave_nr, int sm_nr, int pdo_ix_dir, int entry_ix_
 /* Si (slave info)                                                    */
 /*                                                                    */
 /*------------------------------------------------------------------- */
+#define EC_SLAVE_STATE_MASK 	0x0f
+#define EC_SLAVE_STATE_ACK_ERR 	0x10
+char *slave_state_str( unsigned char state )
+{
+
+	switch( state & EC_SLAVE_STATE_MASK )
+	{
+		case 1: return "INIT  ";
+		case 2: return "PREOP ";
+		case 3: return "BOOT  ";
+		case 4: return "SAFEOP";
+		case 8: return "OP    ";
+		default: return "???   ";
+	}
+
+	/* this will never execute, but gcc loves default in case statements,
+	 * hence
+	 */
+	return "PSI";
+}
+
+char *slave_err_state_str( unsigned char state )
+{
+	if( state & EC_SLAVE_STATE_ACK_ERR )
+		return "+ERROR";
+
+	return "      ";
+}
+
+
+int si_print_slave_config( ecnode *m, int slave_no )
+{
+	int j, k, l, sync_count, pdo_count, entry_count;
+	ec_pdo_entry_info_t pdo_entry_t;
+	ec_pdo_info_t 		pdo_t;
+	ec_sync_info_t 		sync_t;
+	ec_slave_info_t 	slave_t;
+	ec_master_t *ecm = m->mdata.master;
+
+	if( ecrt_master_get_slave( ecm, slave_no, &slave_t ) )
+		perrret( "%s: cannot get slave %d info\n", __func__, slave_no );
+
+	sync_count = slave_t.sync_count;
+	for( j = 0; j < sync_count; j++ )
+	{
+		if( ecrt_master_get_sync_manager( ecm, slave_no, j, &sync_t ) )
+			perrret( "%s: cannot get slave %d, sync mgr %d info\n", __func__, slave_no, j );
+
+		pdo_count = sync_t.n_pdos;
+
+		printf( "      SM %d: PDOs %d, index 0x%04x, %s, WD mode: %s\n",
+				j,
+				pdo_count,
+				sync_t.index,
+				sync_t.dir == 1 ? "Output" : "Input ",
+				sync_t.watchdog_mode == 0 ? "Default" : (sync_t.watchdog_mode == 1 ? "Enabled" : "Disabled")
+			 );
+
+
+		for( k = 0; k < pdo_count; k++ )
+		{
+			if( ecrt_master_get_pdo( ecm, slave_no, j, k, &pdo_t ) )
+				perrret( "%s: cannot get slave %d, sync mgr %d, pdo %d info\n", __func__, slave_no, j, k );
+
+			entry_count = pdo_t.n_entries;
+
+			printf( "                  PDO %d: Entries %d, index 0x%04x\n",
+					k,
+					entry_count,
+					pdo_t.index
+				 );
+
+			for( l = 0; l < entry_count; l++ )
+			{
+				if( ecrt_master_get_pdo_entry( ecm, slave_no, j, k, l, &pdo_entry_t )  )
+					perrret( "%s: cannot get slave %d, sync mgr %d, pdo %d, pdoe_entry %d info\n", __func__, slave_no, j, k, l );
+
+/*
+				if( !pdo_entry.index )
+					continue;
+*/
+				printf( "                                    Entry %3d: \033[1m0x%04x:%02d\033[0m, %d bit%s\n",
+						l,
+						pdo_entry_t.index,
+						pdo_entry_t.subindex,
+						pdo_entry_t.bit_length,
+						pdo_entry_t.bit_length == 1 ? "" : "s"
+					 );
+			}
+
+
+		}
+	}
+
+	return 1;
+}
+
+
+
 
 int ect_print_si( int level )
 {
+	int i, rel = 0, lastalias = 0, slave_count, start_slave_count;
+	ecnode *m, *s;
+	ec_master_t *ecm;
+	ec_master_info_t *minfo;
+	ec_slave_info_t si;
+	ec_master_state_t state;
+	ec_slave_info_t *config_sinfo, current_sinfo;
+	epicsUInt32 val;
+	ethcat *e = drvFindDomain( 0 );
+
+	if( !ecroot )
+	{
+		printf( "EtherCAT slave tree not (yet) initialized (Master root not found).\n" );
+		return 1;
+	}
+
+	if( !ecroot->child )
+	{
+		printf( "EtherCAT slave tree not (yet) initialized (Master node not found).\n" );
+		return 1;
+	}
+	m = ecroot->child;
+
+	ecm = m->mdata.master;
+	minfo = &m->mdata.master_info;
+
+	start_slave_count = m->mdata.master_info_at_start.slave_count;
+
+
+	if( ecrt_master( ecm, minfo ) )
+	{
+		printf( "ERROR: Cannot obtain master information.\n" );
+		return 1;
+	}
+
+	if( !e )
+	{
+		printf( "Domain 0 not found.\n" );
+		return 1;
+	}
+
+	/* display slave info */
+	printf( "-----------------------------------------------------\n" );
+	printf( "                  Master operational: %s\n", get_master_health( e ) ? "Yes" : "No" );
+	printf( "              Network link status ok: %s\n", minfo->link_up ? "Yes" : "No" );
+	printf( "           Slave aggregate health ok: %s\n", get_slave_aggregate_health( e ) ? "Yes" : "No" );
+	printf( "        Slave count during ioc start: %d\n", start_slave_count );
+	printf( "          Current slave count on bus: %d\n", minfo->slave_count );
+	//	printf( "        Master busy scanning the bus: %s\n", minfo->scan_busy ? "Yes" : "No" );
+
+
+
+	printf( "\nSlaves on bus (info level %d):\n", level );
+	printf( "-----------------------------------------------------\n" );
+	for( i = 0, rel = 0; i < minfo->slave_count; i++ )
+	{
+		if( ecrt_master_get_slave( ecm, i, &si ) )
+		{
+			printf( "ERROR: Cannot obtain slave %d information.\n", i );
+			continue;
+		}
+
+		if( si.alias )
+		{
+			lastalias = si.alias;
+			rel = 0;
+		}
+		printf( "%d %s %d:%d " \
+				" %s%s" \
+				,
+					i,
+					/* si.al_state, */
+					si.error_flag ? "E" : "-",
+					lastalias, rel,
+					slave_state_str( si.al_state ),
+					slave_err_state_str( si.al_state )
+				);
+		if( strlen( si.name ) )
+			printf( "%s", si.name );
+
+		if( level == 1 )
+		{
+			printf( "\n" );
+			printf( "                            vendor 0x%08x, pcode:rev 0x%08x:0x%08x, ser 0x%08x",
+						si.vendor_id,
+						si.product_code,
+						si.revision_number,
+						si.serial_number
+					);
+			printf( "\n" );
+
+		}
+		if( level == 2 )
+		{
+			printf( "\n" );
+			si_print_slave_config( m, i );
+		}
+		printf( "\n" );
+
+	}
+	printf( "-----------------------------------------------------\n" );
+
 	return 0;
 }
 
