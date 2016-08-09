@@ -1673,7 +1673,7 @@ int si_print_slave_config( ecnode *m, int slave_no )
 
 		pdo_count = sync_t.n_pdos;
 
-		printf( "      SM %d: PDOs %d, index 0x%04x, %s, WD mode: %s\n",
+		printf( "      " ESC_BOLD "SMs %2d" ESC_RESET ": PDOs %d, index 0x%04x, %s, WD mode: %s\n",
 				j,
 				pdo_count,
 				sync_t.index,
@@ -1689,7 +1689,7 @@ int si_print_slave_config( ecnode *m, int slave_no )
 
 			entry_count = pdo_t.n_entries;
 
-			printf( "                  PDO %d: Entries %d, index 0x%04x\n",
+			printf( "                  " ESC_BOLD "PDO %2d" ESC_RESET ": Entries %d, index 0x%04x\n",
 					k,
 					entry_count,
 					pdo_t.index
@@ -1704,7 +1704,7 @@ int si_print_slave_config( ecnode *m, int slave_no )
 				if( !pdo_entry.index )
 					continue;
 */
-				printf( "                                    Entry %3d: \033[1m0x%04x:%02d\033[0m, %d bit%s\n",
+				printf( "                                    " ESC_BOLD "Entry %3d" ESC_RESET ": 0x%04x:%02d, %d bit%s\n",
 						l,
 						pdo_entry_t.index,
 						pdo_entry_t.subindex,
@@ -1725,25 +1725,28 @@ int si_print_slave_config( ecnode *m, int slave_no )
 
 int ect_print_si( int level )
 {
-	int i, rel = 0, lastalias = 0, slave_count, start_slave_count;
-	ecnode *m, *s;
+	int i, rel = 0, lastalias = 0, start_slave_count;
+	ecnode *m;
 	ec_master_t *ecm;
 	ec_master_info_t *minfo;
 	ec_slave_info_t si;
-	ec_master_state_t state;
-	ec_slave_info_t *config_sinfo, current_sinfo;
-	epicsUInt32 val;
 	ethcat *e = drvFindDomain( 0 );
+
+	if( !e )
+	{
+		printf( PPREFIX "Cannot find domain 0.\n" );
+		return 1;
+	}
 
 	if( !ecroot )
 	{
-		printf( "EtherCAT slave tree not (yet) initialized (Master root not found).\n" );
+		printf( PPREFIX "EtherCAT slave tree not (yet) initialized (Master root not found).\n" );
 		return 1;
 	}
 
 	if( !ecroot->child )
 	{
-		printf( "EtherCAT slave tree not (yet) initialized (Master node not found).\n" );
+		printf( PPREFIX "EtherCAT slave tree not (yet) initialized (Master node not found).\n" );
 		return 1;
 	}
 	m = ecroot->child;
@@ -1777,7 +1780,7 @@ int ect_print_si( int level )
 
 
 
-	printf( "\nSlaves on bus (info level %d):\n", level );
+	printf( "\nSlaves on bus:\n" );
 	printf( "-----------------------------------------------------\n" );
 	for( i = 0, rel = 0; i < minfo->slave_count; i++ )
 	{
@@ -1792,8 +1795,12 @@ int ect_print_si( int level )
 			lastalias = si.alias;
 			rel = 0;
 		}
-		printf( "%d %s %d:%d " \
-				" %s%s" \
+
+		/*
+		 * Slave - level 0 info, always printed
+		 */
+		printf( ESC_BOLD "Slave %2d" ESC_RESET " %s %d:%d " \
+				ESC_BOLD " %s%s" ESC_RESET \
 				,
 					i,
 					/* si.al_state, */
@@ -1805,23 +1812,48 @@ int ect_print_si( int level )
 		if( strlen( si.name ) )
 			printf( "%s", si.name );
 
+		/*
+		 * Slave - level 1 info
+		 */
 		if( level == 1 )
 		{
 			printf( "\n" );
-			printf( "                            vendor 0x%08x, pcode:rev 0x%08x:0x%08x, ser 0x%08x",
-						si.vendor_id,
+			printf( "                            vendor " );
+			if( si.vendor_id == VENDOR_BECKHOFF )
+				printf( ESC_BOLD "Beckhoff" ESC_RESET );
+			else if( si.vendor_id == VENDOR_PSI )
+				printf( ESC_REVERSE "PSI" ESC_RESET );
+			else
+				printf( "0x%08x", si.vendor_id );
+
+			printf( ", pcode:rev 0x%08x:0x%08x, ser 0x%08x",
 						si.product_code,
 						si.revision_number,
 						si.serial_number
 					);
-			printf( "\n" );
+		//	printf( "\n" );
 
 		}
+
+		/*
+		 * Slave - level 2 info
+		 */
 		if( level == 2 )
 		{
 			printf( "\n" );
 			si_print_slave_config( m, i );
 		}
+
+		/*
+		 * Slave - level 10 info
+		 */
+		if( level == 10 )
+		{
+			printf( "\n" );
+			si_print_slave_details( m, i );
+		}
+
+
 		printf( "\n" );
 
 	}
