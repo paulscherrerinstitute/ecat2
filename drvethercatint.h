@@ -119,6 +119,7 @@ typedef struct {
 	RECTYPE rtype;
 	RECIOTYPE riotype;
 	int bitlen;
+	int special_calc;
 } _rectype;
 
 
@@ -138,6 +139,7 @@ typedef struct {
 #define pdbg(fmt, args...)    printk( fmt, ##args )
 
 #define perrret(fmt, args...) { printf( fmt, ##args ); return 0; }
+#define perrret1(fmt, args...) { printf( fmt, ##args ); return 1; }
 #define perrret2(fmt, args...) { printf( fmt, ##args ); return; }
 #define perrex(fmt, args...) { printf( fmt, ##args ); exit(1); }
 

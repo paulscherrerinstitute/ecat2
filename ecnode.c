@@ -132,10 +132,7 @@ ecnode *ecn_get_child_nr( ecnode *parent, int nr )
 	do {
 		sl++;
 		if( n->nr == nr )
-		{
-/*			pinfo( "%s: child nr. %d found (%d slaves visited)\n", __func__, nr, sl ); */
 			return n;
-		}
 	}
 	while( (n = n->next) );
 
@@ -148,7 +145,6 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 	ecnode *n = parent->child;
 	int sl = 0, found_last = 0;
 
-/*	pinfo( "%s: called with: last_nr %d\n", __func__, *last_nr ); */
 
 	if( !parent || !n )
 		perrret( "%s: parent or parent->child NULL\n", __func__ );
@@ -160,7 +156,6 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 		if( *last_nr < 0 )
 		{
 			*last_nr = n->nr;
-/*			pinfo( "%s: child nr. %d found (%d slave nodes visited)\n", __func__, n->nr, sl ); */
 			return n;
 		}
 
@@ -173,13 +168,11 @@ ecnode *ecn_get_next_child_nr( ecnode *parent, int *last_nr )
 		if( !found_last )
 			continue;
 
-/*		pinfo( "%s: child nr. %d found (%d slave nodes visited)\n", __func__, n->nr, sl ); */
 		*last_nr = n->nr;
 		return n;
 	}
 	while( (n = n->next) );
 
-/*	pinfo( "%s: child nr. %d not found (%d slave nodes visited)\n", __func__, n->nr, sl ); */
 	return NULL;
 }
 
@@ -274,7 +267,6 @@ ecnode *ecn_get_next_sync_nr(
 	ecnode *slave = ecn_get_child_nr( m, s_nr );
 	if( !slave )
 		perrret( "%s: get slave nr %d failed\n", __func__, s_nr );
-/*	pinfo( "%s: called with: slave %d, last_sm_nr %d\n", __func__, s_nr, *last_sm_nr ); */
 
 	temp = ecn_get_next_child_nr( slave, last_sm_nr );
 	if( !temp )

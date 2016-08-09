@@ -28,6 +28,19 @@
 #ifndef ECTOOLS_H
 #define ECTOOLS_H
 
+
+
+#define VENDOR_BECKHOFF		0x00000002
+#define VENDOR_PSI			0x00505349
+
+
+#define ESC_BOLD 		"\033[1m"
+#define ESC_FG_RED		"\033[31m"
+#define ESC_REVERSE		"\033[7m"
+#define ESC_RESET 		"\033[0m"
+
+
+
 char *strtoupper( char *s );
 char *strtolower( char *s );
 
