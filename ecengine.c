@@ -761,7 +761,6 @@ thread_out:
 			if( n->sdata.check )
 			{
 				setto = 0;
-				config_sinfo = &n->sdata.config_slave_info;
 				memset( &current_sinfo, 0, sizeof(ec_slave_info_t) );
 
 				if( !ecrt_master_get_slave( ecm, n->nr, &current_sinfo ) )
