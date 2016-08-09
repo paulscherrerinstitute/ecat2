@@ -1847,11 +1847,13 @@ int ect_print_si( int level )
 		/*
 		 * Slave - level 10 info
 		 */
+/*
 		if( level == 10 )
 		{
 			printf( "\n" );
 			si_print_slave_details( m, i );
 		}
+*/
 
 
 		printf( "\n" );

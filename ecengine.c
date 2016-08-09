@@ -688,7 +688,7 @@ void ec_shc_thread( void *data )
 	ec_master_info_t *minfo;
 	ec_master_state_t state;
 	ecnode *n;
-	ec_slave_info_t *config_sinfo, current_sinfo;
+	ec_slave_info_t current_sinfo;
 
 	if( !ec )
 	{
