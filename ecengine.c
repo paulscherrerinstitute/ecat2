@@ -711,7 +711,7 @@ void ec_shc_thread( void *data )
 	{
 		errlogSevPrintf( errlogFatal, "%s: master not valid (2)\n", __func__ );
 thread_out:
-		errlogSevPrintf( errlogFatal, "%s: System healt check thread NOT started!\n", __func__ );
+		errlogSevPrintf( errlogFatal, "%s: System health check thread NOT started!\n", __func__ );
 		return;
 	}
 
